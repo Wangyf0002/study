@@ -33,6 +33,12 @@ git status
 ```
 git commit -m "备注"
 ```
+
+查看本地仓库中的文件
+```
+git ls-files
+```
+
 查看日志
 - `git log` : 全部日志
 - `git log +语句+语句···`：按下列语句条件查看：
