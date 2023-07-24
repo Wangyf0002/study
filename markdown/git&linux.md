@@ -76,6 +76,51 @@ git reset --hard 某commitId
 
 ## 1.3 git分支
 
+**查看分支**
+
+```
+git branch
+git branch -vv  //查看本地分支与远程分支关系
+```
+
+> HEAD->分支名  //显示当前所在分支
+
+**创建新分支**
+
+```
+git branch 分支名
+```
+
+**切换分支**
+
+```
+git checkout 分支名
+git checkout -b 分支名 //创建并切换到分支
+```
+
+**合并分支**
+
+```
+git merge  分支名a //把分支名a合并到当前分支
+```
+
+**删除分支**
+
+```
+git branch -d  分支名 //检查后删除
+git branch -D 分支名  //直接删
+```
+
+> 不能删除当前分支，想删当前分支先切换
+
+**解决冲突**
+
+> 两个不同分支同一位置数据矛盾时，先进改成目标内容，再add，commit等
+
+**开发中的分支**
+master：正式服   hotflix：线上bug修复    develop：体验服，测试后合并到正式服  feature：私服，自己先开发
+![1690185629407](image/git&linux/1690185629407.png)
+
 ## 1.4 远程仓库
 
 **创建远程仓库**
@@ -92,7 +137,7 @@ git remote
 
 法一：
 
-> 直接克隆，在克隆文件夹内操作（add，commit，push），见下
+> 直接克隆，把文件拉进去并在克隆文件夹内操作（add，commit，push），见下
 
 法二：
 
@@ -101,7 +146,7 @@ git remote
 
    2.1 可能出现问题的解决：[关于git的问题：error: src refspec main does not match any_TripleGold](https://blog.csdn.net/gongdamrgao/article/details/115032436)
 
-   2.2 -u的含义；其中 `--set-upstream`表示推送至远端同时关联远端分支
+   2.2 -u的含义；其中 `--set-upstream origin 远端分支`表示推送至远端同时关联远端分支
 
    ```
       git push -u origin master
@@ -115,10 +160,12 @@ git remote
 
 1. 克隆：`git clone 仓库ssh //下载整个文件夹到本地`
 2. 抓取：把远程仓库的更新抓到本地，但不会合并分支
+
    ```
    git fetch 远端名 分支名 //不指定远端名和分支名则抓取全部分支
    ```
    拉取：把远程仓库的更新抓到本地，合并分支（fetch+merge）
+
    ```
    git pull 远端名 分支名 //不指定远端名和分支名则拉取全部分支
    ```
