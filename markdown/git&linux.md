@@ -55,6 +55,7 @@ git ls-files
 **查看日志**
 
 - `git log` : 全部日志
+- `git log 文件名` ：单个文件日志
 - `git log +语句+语句···`：按下列语句条件查看：
   - `--all` ： 显示所有分支
   - `--pretty=online` ： 显示为1行
@@ -65,10 +66,20 @@ git ls-files
 **版本回退**
 
 ```
-git reset --hard 某commitId
+git reset --hard 某commitId //回退到某commitId版本
+git checkout -- 文件名 //将文件回退至最近一次修改的状态
 ```
 
 > 选中即复制，按下滚轮即粘贴
+
+**删除文件**
+
+```
+git rm 文件名
+```
+
+**暂时挂起工作**
+`git stash`相关指令，详见：[git stash 正确用法](https://blog.csdn.net/jxwBlog/article/details/124449207)
 
 **创建忽略列表**
 
@@ -79,8 +90,9 @@ git reset --hard 某commitId
 **查看分支**
 
 ```
-git branch
+git branch       //查看当前分支
 git branch -vv  //查看本地分支与远程分支关系
+git branch -a   //查看当前所有分支
 ```
 
 > HEAD->分支名  //显示当前所在分支
@@ -89,6 +101,12 @@ git branch -vv  //查看本地分支与远程分支关系
 
 ```
 git branch 分支名
+```
+
+**分支改名**
+
+```
+git branch -m 原分支名 新分支名
 ```
 
 **切换分支**
@@ -109,6 +127,7 @@ git merge  分支名a //把分支名a合并到当前分支
 ```
 git branch -d  分支名 //检查后删除
 git branch -D 分支名  //直接删
+git push origin --delete 远程分支名  //删除远程分支
 ```
 
 > 不能删除当前分支，想删当前分支先切换
@@ -117,20 +136,36 @@ git branch -D 分支名  //直接删
 
 > 两个不同分支同一位置数据矛盾时，先进改成目标内容，再add，commit等
 
+**查看分支差异**
+
+```
+git diff 分支1 分支2 文件名
+```
+
 **开发中的分支**
 master：正式服   hotflix：线上bug修复    develop：体验服，测试后合并到正式服  feature：私服，自己先开发
 ![1690185629407](image/git&linux/1690185629407.png)
+
+**2.23新增分支命令**
+
+```
+git swicth 分支名  //切换分支（不会主动创建）
+git switch -d commitID //切换到指定id并创建分支
+git switch -b 分支名 //合并分支
+git switch -c 分支名 //创建分支
+```
 
 ## 1.4 远程仓库
 
 **创建远程仓库**
 
-[ github仓库建立及配置教程新手教程_FangYwang的博客-CSDN博客](https://blog.csdn.net/qq_44722674/article/details/117200397)
+[github仓库建立及配置教程新手教程](https://blog.csdn.net/qq_44722674/article/details/117200397)
 
 **查看远程仓库**
 
 ```
 git remote
+git remote -v //查看更详细的权限信息
 ```
 
 **推送到远程仓库**
@@ -159,6 +194,7 @@ git remote
 **从远程仓库到本地**
 
 1. 克隆：`git clone 仓库ssh //下载整个文件夹到本地`
+   `git clone -b 分支名` 仓库ssh  //下载指定分支到本地
 2. 抓取：把远程仓库的更新抓到本地，但不会合并分支
 
    ```
