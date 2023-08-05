@@ -39,14 +39,14 @@ DI：依赖注入
     ioCData.display();//使用Bean调用容器内方法
    ```
 5. 删除业务层中new出来的对象（为了解耦）
-6. 提供对应的set方法（后续由容器调用）
+6. 提供对应的set方法（后续由容器内部调用）
    ```
    public void setIoCData(IoCData ioCData) 
         this.ioCData = ioCData;
    ```
 7. 使用property配置bean中对象的关系
    ```
-   <property name="ioCData" ref="IoCData"/>//配置在bean标签中，name表示配置的属性，如private IoCData ioCData中的对象;ref表示参照/连接哪个bean id
+   <property name="ioCData" ref="IoCData"/>//配置在需要注入的bean标签中，name表示配置的属性，如private IoCData ioCData中的对象ioCData;ref表示参照/连接哪个bean id，即name中对象所在的类IoCData
    ```
 
 ## 1.3 Bean
@@ -133,3 +133,106 @@ DI：依赖注入
    ```
 
 ## 1.3.3 Bean的生命周期
+
+1. bean初始化
+
+   ```
+   public class IoCDataImpl implements IoCData{
+   public void init(){ //在实现类中定义一个初始化方法
+           System.out.println(1);
+   	}
+   }
+   ```
+
+   ```
+    <bean id="IoCData"  init-method="init"/> //配置时注明初始方法即可
+   ```
+2. bean销毁
+
+   ```
+    <bean id="IoCData"  destory-method="destory"/> //如上述设置后，不会实现实现类中destory方法，因为虚拟机关闭时没有给bean销毁的机会，手动销毁如下：
+   ```
+
+   2.1 暴力法：直接手动关闭容器
+
+   ```
+   ClassPathXmlApplicationContext ctx=new ClassPathXmlApplicationContext("appContext.xml");//其中ClassPathXmlApplicationContext是ApplicationContext接口的实现类
+   ctx.close(); //后面的有关ctx的全部执行不了
+   ```
+
+   2.2 设置关闭钩子：告诉虚拟机做完所有事情之后关的时候先把容器关了
+
+   ```
+   ClassPathXmlApplicationContext ctx=new ClassPathXmlApplicationContext("appContext.xml");
+   ctx.registerShutdownHook();//只是告诉虚拟机有这回事，执行完记得关好吧
+   ```
+3. **初始化与销毁之spring优化版**：不需要配置bean的属性
+
+   ```
+   public class IoCServiceImpl implements IoCService , InitializingBean, DisposableBean { //一个实现类的例子，调用了InitializingBean, DisposableBean两个接口
+
+    private IoCServiceImpl() {
+        System.out.println("nihao");
+    }
+
+    private IoCData ioCData;
+    public void display(){
+        System.out.println("service");
+        ioCData.display();
+    }
+
+    public void setIoCData(IoCData ioCData) {
+        this.ioCData = ioCData;
+    }
+
+    @Override
+    public void destroy() throws Exception { //重写接口中销毁方法
+
+    }
+
+    @Override
+    public void afterPropertiesSet() throws Exception { //重写接口中初始化方法，但是在setIoCData（对象属性注入）之后执行
+
+    }
+   }
+   ```
+4. bean生命周期
+
+   创建对象 》执行构造方法 》执行set（属性设置）》执行初始化方法 》使用bean干活 》执行销毁方法
+
+## 1.3.4 依赖注入
+
+1. setter引用注入：见1.2.6-7
+2. setter简单类型诸如：
+
+   ```
+   private int data; //在某一实现类中，不是像上面注入引用对象private IoCData ioCData;，而是注入简单类型
+   public void setData(int data) {  //并生成对应的注入方法
+        this.data = data;
+    }
+   ```
+   ```
+   <property name="data" value="10"/> //value表示简单类型的值
+   ```
+3. 构造器注入
+
+   ```
+   private IoCData ioCData;
+   public IoCServiceImpl(IoCData ioCData) { //换了个方法形式而已，里面都一样
+        this.ioCData = ioCData;
+   }
+   ```
+   ```
+   <constructor-arg name="ioCData" ref="IoCData"/> //与property同样的位置，不过name表示构造器中形参的名称，不是对象的名称。后面的ref还是value同上
+
+   ```
+4. **自动装配**
+
+   > 保留setter方法，更改bean配置，删除property等具体配置
+   > 不能操作对简单类型
+   >  优先级低于1-3
+
+   ```
+   <bean ··· autowire="byType"/> //byType按类型注入：按注入对象的类名去匹配，提供要求保证注入对象的类型存在唯一的bean
+   <bean ··· autowire="byName"/> //byName:按名称注入：按set方法名去匹配（如有setData就去匹配data）要求保证存在一个id与注入对象相同的bean
+   ```
