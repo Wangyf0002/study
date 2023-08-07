@@ -312,26 +312,85 @@ DI：依赖注入
 > * @Repository：数据层bean
 
 ### 1.4.2纯注解开发（替代功能1.4.1中2-3）
-```
-   @Configuration//定义配置类代替配置文件
-   @ComponentScan("包路径") //替代1.4.1中3，定义多个路径用{}格式
-   public class SpringConfig{}
-```
-```
-   //main中代码：
-   Application ctx=new AnnotationConfigApplication(SpringConfig.class)//替代1.2.4中的IOC容器获取，括号里的是上面定义的配置类
-```
-```
-   @Scope("prototype") //替代1.3.1中bean作用范围
-   public class IoCDataImpl implements IoCData{ //这是一个实现类
-      @PostContruct//替代1.3.3中bean的初始化方法
-      public void init(){
-         ···
+1. 配置：
+   ```
+      @Configuration//定义配置类代替配置文件
+      @ComponentScan("包路径") //替代1.4.1中3，定义多个路径用{}格式
+      public class SpringConfig{}
+   ```
+2. 获取IoC容器   
+   ```
+      //main中代码：
+      Application ctx=new AnnotationConfigApplication(SpringConfig.class)//替代1.2.4中的IOC容器获取，括号里的是上面定义的配置类
+   ```
+3. 管理bean作用范围和生命周期   
+   ```
+      @Scope("prototype") //替代1.3.1中bean作用范围
+      public class IoCDataImpl implements IoCData{ //这是一个实现类
+         @PostContruct//替代1.3.3中bean的初始化方法
+         public void init(){
+            ···
+         }
+         @PreDistory//替代1.3.3中bean的销毁方法
+         public void destory(){
+            ···
+         }
       }
-      @PreDistory//替代1.3.3中bean的销毁方法
-      public void destory(){
-         ···
-      }
-   }
-```
+   ```
+4. 依赖注入
+   >引用类型注入
+   ```
+      @Service
+      public class IoCServiceImpl implements IoCService{ //这是一个实现类
+         @Autowired //按类型注入。替代1.3.4.4中的自动装配,且由于其基于反射，故不用提供setter方法
+         public IoCData ioCData;
 
+         @Autowired
+         @Qulifier("bean id")//当有多个调用相同接口的实现类时，使用按名称注入。名称为实现类前使用注解定义的bean id
+         public IoCData ioCData;
+      }
+   ```
+   >简单类型注入
+   ```
+      @Service
+      public class IoCServiceImpl implements IoCService{ //这是一个实现类
+         @Value(1)
+         private int age;
+      }
+   ```
+5. 第三方资源配置：替代1.3.4.6
+   ```
+   @Configuration
+   @ComponentScan("包路径") 
+   @ProperSource("classpath:xxx.properties") //配置文件名,多个的话支持大括号，不支持*
+   public class SpringConfig{} //配置类
+   ```
+   ```
+   @Service
+      public class IoCServiceImpl implements IoCService{ 
+         @Value(${properties文件中属性})
+         private int age;
+      }
+   ```
+6. 管理第三方bean
+   ```
+   @Value(properties文件中属性)//简单类型依赖注入
+         private int age;
+   //第三方bean配置类  
+   public class JdbcConfig（Data data）{ //引用类型依赖注入：做为形参
+      @Bean
+      public Data data(){//定义方法获取要管理的对象
+         xxx ds=new xxx();//第三方的获取资源接口
+         ds.setAge(age);//第三方setter方法设置属性
+         return ds;
+      }
+   } 
+   ```
+   ```
+   @Configuration
+   @ComponentScan("包路径") 
+   @ProperSource("classpath:xxx.properties")
+   @Import({JdbcConfig.class})
+   public class SpringConfig{//导入spring配置类中
+   } 
+   ```
