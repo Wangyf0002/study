@@ -2,8 +2,8 @@
 
 ## 1.1 核心概念
 
-> 把由自己new对象转为外部提供对象，为了解耦
->
+IOC：把由自己new对象转为外部提供对象，为了解耦
+
 > spring技术中：
 >
 > * 提供了IOC容器，充当外部
@@ -13,7 +13,19 @@ DI：依赖注入
 
 > 按照本来的关系在容器中建立bean之间的依赖关系
 
+AOP：不改原有的基础上增强功能
+
+> 通知类与通知方法：程序中的共性功能抽取出来单列
+>
+> 连接点：程序执行的任意位置，在SpringAop中为方法的执行
+>
+> 切入点：匹配连接点的式子，在SpringAop中为通知方法加入的方法
+>
+> 切面：连接切入点和通知
+
 # 1.2 基础练习
+
+### 1.2.1 IoC基础练习
 
 1. pom.xml中导入spring坐标
 
@@ -50,6 +62,81 @@ DI：依赖注入
    ```
    <property name="ioCData" ref="IoCData"/>//配置在需要注入的bean标签中，name表示配置的属性，如private IoCData ioCData中的对象ioCData;ref表示参照/连接哪个bean id，即name中对象所在的类IoCData
    ```
+
+### 1.2.2 spring整合mybatis基础练习
+
+1. pom中导入坐标，略
+2. 分别设计数据库连接池等两个配置类来替代mybatis中的xml配置文件
+   ```
+   public class jdbcConfig {
+    @Value("com.mysql.jdbc.Driver")
+    private String driver;
+    @Value("jdbc:mysql:///test?useSSL=false")
+    private String url;
+    @Value("root")
+    private String username;
+    @Value("1234")
+    private String password;
+    @Bean
+    public DataSource dataSource(){
+        DruidDataSource druidDataSource=new DruidDataSource();
+        druidDataSource.setDriverClassName(driver);
+        druidDataSource.setUrl(url);
+        druidDataSource.setUsername(username);
+        druidDataSource.setPassword(password);
+        return druidDataSource;
+      }
+   }
+   ```
+   ```
+   public class SpringConfig {
+    @Bean
+    public SqlSessionFactoryBean sqlSessionFactoryBean(DataSource dataSource){
+        SqlSessionFactoryBean sqlSessionFactoryBean=new SqlSessionFactoryBean();
+        sqlSessionFactoryBean.setDataSource(dataSource);
+        return sqlSessionFactoryBean;
+    }
+    @Bean
+    public MapperScannerConfigurer mapperScannerConfigurer(){
+        MapperScannerConfigurer mapperScannerConfigurer=new MapperScannerConfigurer();
+        mapperScannerConfigurer.setBasePackage("Data");
+        return mapperScannerConfigurer;
+    }
+   }
+   ```
+   ```
+   @Configuration
+   @ComponentScan({"Data","Service"})
+   @PropertySource("classpath:jdbc.properties")
+   @Import({jdbcConfig.class,SpringConfig.class})
+   public class Config { //这是总的配置类
+   }
+
+   ```
+3. 服务层代码也要配置为bean和进行自动装配
+   ```
+   @Service
+   public class UserServiceImpl implements UserService{//这是一个服务层实现类
+    @Autowired
+    private Mapper mapper;//这是mybatis的查询接口
+    public List<User> selectAge(){ //接口中的查询方法
+        return mapper.selectAge();
+    }
+   }
+   ```
+4. 最后写的main
+   ```
+   public class DemoSpring {
+    public static void main(String[] args) {
+        ApplicationContext applicationContext=new AnnotationConfigApplicationContext(Config.class);
+        UserService userService=applicationContext.getBean(UserService.class);
+        List<User>user=userService.selectAge();
+        System.out.println(user);
+    }
+   }
+   ```
+### 1.2.3 AOP基础练习
+
 
 ## 1.3 Bean
 
@@ -312,18 +399,22 @@ DI：依赖注入
 > * @Repository：数据层bean
 
 ### 1.4.2纯注解开发（替代功能1.4.1中2-3）
+
 1. 配置：
+
    ```
       @Configuration//定义配置类代替配置文件
       @ComponentScan("包路径") //替代1.4.1中3，定义多个路径用{}格式
       public class SpringConfig{}
    ```
-2. 获取IoC容器   
+2. 获取IoC容器
+
    ```
       //main中代码：
       Application ctx=new AnnotationConfigApplication(SpringConfig.class)//替代1.2.4中的IOC容器获取，括号里的是上面定义的配置类
    ```
-3. 管理bean作用范围和生命周期   
+3. 管理bean作用范围和生命周期
+
    ```
       @Scope("prototype") //替代1.3.1中bean作用范围
       public class IoCDataImpl implements IoCData{ //这是一个实现类
@@ -338,7 +429,10 @@ DI：依赖注入
       }
    ```
 4. 依赖注入
-   >引用类型注入
+
+   > 引用类型注入
+   >
+
    ```
       @Service
       public class IoCServiceImpl implements IoCService{ //这是一个实现类
@@ -350,7 +444,9 @@ DI：依赖注入
          public IoCData ioCData;
       }
    ```
-   >简单类型注入
+   > 简单类型注入
+   >
+
    ```
       @Service
       public class IoCServiceImpl implements IoCService{ //这是一个实现类
@@ -359,6 +455,7 @@ DI：依赖注入
       }
    ```
 5. 第三方资源配置：替代1.3.4.6
+
    ```
    @Configuration
    @ComponentScan("包路径") 
@@ -373,6 +470,7 @@ DI：依赖注入
       }
    ```
 6. 管理第三方bean
+
    ```
    @Value(properties文件中属性)//简单类型依赖注入
          private int age;
