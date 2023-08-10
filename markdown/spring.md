@@ -638,3 +638,83 @@ Signature sig=proceedingJoinPoint.getSignature();
 String class=sig.getDeclaringTypeName();//基础方法所在位置
 String name=sig.getName();//获取基础方法 
 ```
+
+## 1.6 Spring事务
+
+### 1.6.1 事务流程
+
+1. 业务层接口添加事务管理
+   ```java
+   @Transactional //在接口添加事务，可以使整个接口同进退
+   public interface UserService(){ //这是业务层接口
+      @Transactional //也可以在单独对某个方法进行事务管理
+      public void select(int a){}
+   }
+   ```
+2. 配置文件中设置业务管理器
+   ```java
+   @Bean
+   public PlatformTransactionManager transactionManager(DataSource dataSource){
+      DataSourceTransactionManager ptm=new DataSourceTransactionManager();
+      ptm.setDataSource(dataSource);
+      return ptm;
+   }
+   ```
+3. 开启注解式事务驱动
+   ```java
+   @EnableTransactionManagement
+   public class Config { //这是配置类
+   }
+   ```
+
+### 1.6.2 事务角色
+
+> 事务管理员：发起事务方，如业务层中开启事务的方法，将多个协调员与自己整合成一个大事务。例：select(int)
+> 事务协调员：加入事务方，如数据层方法或业务层方法。例：getid() getName()
+
+```java
+   public class UserService(){ //这是1.6.1中接口的实现类
+      @Transactional 
+      public void select(int a){ 
+         userData.getid(); 
+         userData.getName();
+      }
+   }
+```
+
+### 1.6.3 事务配置
+
+> 格式：`@Transactional(属性 = 属性值)`
+
+* readOnly：设置是否为只读事务；true为只读
+* timeout：设置事务超时时间；-1为永不超时
+* rollbackFor：设置事务回滚所需的异常；默认只回滚error类异常和运行时异常，其他需自己指定。如 `rollbackFor = xxxException.class()`
+* rollbackForClassName：同上，如 `rollbackForName = "xxxException"`
+* norollbackFor,norollbackForClassName：见上
+* propagation：事务协调员对事务管理员事务的处理态度。如 `propagation=Propagation.NEVER`
+
+  ![1691669934692](image/spring/1691669934692.jpg)
+
+# 2. SpringMVC
+
+> 一种表现层框架开发技术
+
+## 2.1项目练习
+
+### 2.1.1 基础练习
+
+1. 导入servlet与springmvc包
+   ```java
+   <dependency>
+         <groupId>javax.servlet</groupId>
+         <artifactId>javax.servlet-api</artifactId>
+         <version>3.1.0</version>
+         <scope>provided</scope>
+   </dependency>
+   <dependency>
+         <groupId>org.springframework</groupId>
+         <artifactId>spring-webmvc</artifactId>
+         <version>5.2.10.RELEASE</version>
+   </dependency>
+   ```
+2. 
