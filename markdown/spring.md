@@ -701,9 +701,7 @@ String name=sig.getName();//获取基础方法
 
 ## 2.1项目练习
 
-### 2.1.1 基础练习
-
-1. 导入servlet与springmvc包
+1. 导入servlet与springmvc包，配置tomcat
    ```java
    <dependency>
          <groupId>javax.servlet</groupId>
@@ -716,5 +714,260 @@ String name=sig.getName();//获取基础方法
          <artifactId>spring-webmvc</artifactId>
          <version>5.2.10.RELEASE</version>
    </dependency>
+   <build>
+   <plugins>
+    <plugin>
+      <groupId>org.apache.tomcat.maven</groupId>
+      <artifactId>tomcat7-maven-plugin</artifactId>
+      <version>2.1</version>
+      <configuration>
+        <port>80</port>
+        <path>/</path>
+      </configuration>
+    </plugin>
+   </plugins>
+   </build>
    ```
-2. 
+2. **创建控制器**
+   ```java
+   @Controller //springmvc中定义bean注解
+   public class UserController {
+    @RequestMapping("/save") //设置当前控制器方法请求访问路径，每一个@RequestMapping对应具体的方法
+    @ResponseBody //设置控制器返回值为响应体。如将java对象转为json格式的数据，具体是将controller的方法返回的对象通过适当的转换器转换为指定的格式之后，写入到response对象的body区，通常用来返回JSON数据或者是XML数据。
+    public String save(){ //处理请求类
+        System.out.println("saving");
+        return "{'module':'springmvc'}";//模拟返回json数据
+    }
+   }
+   ```
+3. 配置类
+   ```java
+   @Configuration
+   @ComponentScan("controller")
+   public class springMVCconfig { //配置类
+   }
+   ```
+4. 定义servlet容器启动的配置类，在里面加载spring配置
+   ```java
+   public class servletConfig extends AbstractDispatcherServletInitializer {
+    @Override
+    protected WebApplicationContext createServletApplicationContext() { //加载springmvc容器配置
+        AnnotationConfigWebApplicationContext applicationContext=new AnnotationConfigWebApplicationContext();
+        applicationContext.register(springMVCconfig.class); //注册springmvc配置
+        return applicationContext;
+    }
+
+    @Override
+    protected String[] getServletMappings() { //设置哪些请求给springmvc处理
+        return new String[]{"/"}; //所有请求都规springmvc处理
+    }
+
+    @Override
+    protected WebApplicationContext createRootApplicationContext() { //加载spring容器配置
+        return null;
+      }
+   }
+
+   //上述代码的简化版
+   public class servletConfig extends AbstractAnnotationConfigDispatcherServletInitializer{
+    @Override
+    protected Class<?>[] getRootConfigClasses() { //配spring
+        return new Class[0];
+    }
+    @Override
+    protected Class<?>[] getServletConfigClasses() { //配springmvc
+        return new Class[]{springMVCconfig.class};
+    }
+    @Override
+    protected String[] getServletMappings() {
+        return new String[]{"/"};
+    }
+
+    @Override
+    protected Filter[] getServletFilters(){ //设置过滤器，处理post请求中的中文乱码
+        CharacterEncodingFilter filter=new CharacterEncodingFilter();
+        filter.setEncoding("UTF-8");
+        return new Filter[]{filter};
+    }
+   }
+   ```
+5. 执行流程
+   1. 服务器启动，执行servletConfig类，初始化web容器
+   2. 执行createServletApplicationContext，在web容器中的servletContext中创建WebApplicationContext对象
+   3. 加载springmvc配置，见4中register方法
+   4. 进到配置类springMVCconfig中，执行@ComponentScan，进到带有 @Controller的UserController中，在WebApplicationContext对象中加载了bean：UserController
+   5. 执行getServletMappings，定义请求通过springmvc
+   6. 发送请求localhost/save
+   7. web容器发现5中设定，将请求交给springmvc
+   8. springmvc通过UserController的@RequestMapping，解析/save，匹配到了save方法并执行
+
+      8+：假设有两个controller，userController,bookController都有save方法怎么办？
+      ```java
+      @Controller 
+      @RequestMapping("/user") //给两个类分别设定映射路径前缀，访问时加上路径访问。如localhost/user/save 
+      public class UserController {
+      @RequestMapping("/save") 
+      @ResponseBody 
+      public String save(){···}
+      }
+      ```  
+      8++：怎么设置不给springmvc处理请求
+      ```java
+      @Configuration
+      public class springmvcsupport extends WebConfigurationSupport{
+         @Override
+         protected void addResourceHandlers(ResourceHandlerRegistry registry){
+            registry.addResourceHandlers("/pages/**").addResourcesLocations("/page/"); //如果遇到pages目录下的东西就去访问/page/
+         }
+      }
+      //在总的配置类中记得扫描此类
+      ```
+   9. 检测到@ResponseBody，将返回值做为响应体返回给请求方
+
+## 2.2 bean加载
+
+> 如何避免spring加载到springmvc的bean
+
+1. 精确扫描，在springconfig配置类的@ComponentScan中定义只扫描spring的bean
+2. 过滤掉springmvc的包
+   ```java
+   @Configuration
+   //excludeFilters为过滤器类型，type为过滤类型，后面为过滤类型需要的具体参数
+   @ComponentScan(value="大包名",excludeFilters=@ComponentScan.Filter(type=Filtertype.ANNOTATION,classes=Controller.class))
+   public class springconfig { //spring的配置类
+   }
+   ```
+3. 服务器启动时加载spring配置
+   ```java
+     @Override
+    protected Class<?>[] getRootConfigClasses() {
+        return new Class[]{springconfig.class};
+    }
+   ```
+
+## 2.3 请求（从服务区获取）
+
+### 2.3.1 发送普通参数
+
+> get请求在params中写，post请求在body的form-urlencoded中写，json在get的body中选择raw，JSON
+
+```java
+@Controller 
+public class UserController {
+    @RequestMapping("/save") 
+    @ResponseBody 
+    public String save(String name){ //括号里写接收的参数即可
+        System.out.println(name);
+        return "{'module':'springmvc'}";
+    }
+}
+```
+
+### 2.3.2 不同参数传递
+
+> 设发送的请求中有name和age两个属性
+
+* 不同名称的映射
+  ```java
+  public String save(@RequestParam("name")String username){···} //@RequestParam把请求中的name和形参的username相对应，一个方法体中可使用多个
+  ```
+* pojo参数
+  ```java
+  public String save(User user){···} //假设传入的user对象中有name和age属性，系统会自行对应赋值
+  //假设传入的user对象中还有非简单类型的值，如在User类中定义address对象，其中包含city和province两个属性，则发送请求时还需发送address.city address.age两个参数
+  private Address address
+  ```
+* 数组参数
+  ```java
+  public String save(String[] like){···} //把请求中属性为like的全接到一起
+  ```
+* 集合参数
+  ```java
+  public String save(@RequestParam List<String>like){···} //把请求中属性为like的全接到一起,注意要加入注解，否则系统像pojo参数一样，以为like是list的属性
+  ```
+* json参数
+  ```java
+   <dependency> //先导坐标
+      <groupId>com.fasterxml.jackson.core</groupId>
+      <artifactId>jackson-databind</artifactId>
+      <version>2.9.0</version>
+   </dependency>
+
+   @Configuration
+   @ComponentScan("controller")
+   @EnableWebMvc //配置类中开启类型转换器convert，可转换如json数据转换成对象的功能
+   public class springMVCconfig { //配置类
+   }
+
+   public String save(@RequestBody List<String>like){···} //信息是在请求体里，改注解@RequestBody,一个方法体中只能使用一次
+   public String save(@RequestBody User user){···} //json发送{"name":"xxx","age":11,"address":{"city":"HK"}}格式的数据
+   public String save(@RequestBody List<User>like){···} //json发送[{"name":"xxx","age":11},{"name":"yyy","age":6}]格式的数据
+  ```
+* 日期参数
+  ```java
+  public String save(Date date){···} //发送2020/2/2，系统可以将string直接转为date
+  public String save(@DateTimeFormat(pattern="yyyy-MM-dd HH:mm:ss") Date date){···} //发送2020-2-2 8:08:08，使用注解自定义格式
+  ```
+
+## 2.3 响应（告诉服务器收到了）
+
+* 响应/跳转页面
+
+  ```java
+      //注意，没有 @ResponseBody了
+      public String save(){return xxx.jsp;}
+  ```
+* 响应文本
+
+  ```java
+    @ResponseBody
+      public String save(){return "hello"}
+  ```
+* 响应pojo
+
+  ```java
+    @ResponseBody
+      public User save(){
+         User user=new User();
+         这里是user的set函数···
+         return user;
+      }
+
+      @ResponseBody
+      public List<User> save(){
+         User user=new User();
+         List<User>list=new ArrayList<>();
+         这里是user的set函数和list的函数···
+         return list;
+      }
+  ```
+
+  ## 2.3 REST风格
+
+
+  > **一种资源的访问形式**
+  > 由这种 localhost/user/add 表示保存，localhost/user/delete 表示删除
+  > 到localhost/users 使用POST请求格式表示保存，PUT格式表示删除
+  >
+* GET：从服务器取出资源（一项或多项）
+* POST：在服务器新建一个资源
+* PUT：在服务器更新资源（更新完整资源）
+* PATCH：在服务器更新资源（更新个别属性）
+* DELETE：从服务器删除资源
+
+```java
+   @RestController // @ResponseBody+@Contoller
+   @RequestMapping("/users")
+   public class UserController {
+    @PostMapping  //@RequestMapping(method=RequestMethod.POST)的简化版
+    public String save(){  //无参的
+        return "{'module':'springmvc'}";
+      }
+
+    @GetMapping("/{id}") //@RequestMapping(value="/{id}",method=RequestMethod.GET)的简化版,需要包含形参,代表value后面路径包含参数的含义
+    public String get(@PathVariable Integer id){  //有参的，注解@PathVariable代表从value后面的路径取值,参数较少时可以使用其来接收
+        return "{'module':'springmvc'}";
+      }
+   }
+```
+# 3.SSM整合
