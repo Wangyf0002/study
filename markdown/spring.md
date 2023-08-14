@@ -802,6 +802,7 @@ String name=sig.getName();//获取基础方法
    8. springmvc通过UserController的@RequestMapping，解析/save，匹配到了save方法并执行
 
       8+：假设有两个controller，userController,bookController都有save方法怎么办？
+
       ```java
       @Controller 
       @RequestMapping("/user") //给两个类分别设定映射路径前缀，访问时加上路径访问。如localhost/user/save 
@@ -810,14 +811,16 @@ String name=sig.getName();//获取基础方法
       @ResponseBody 
       public String save(){···}
       }
-      ```  
+      ```
+
       8++：怎么设置不给springmvc处理请求
+
       ```java
       @Configuration
       public class springmvcsupport extends WebConfigurationSupport{
          @Override
          protected void addResourceHandlers(ResourceHandlerRegistry registry){
-            registry.addResourceHandlers("/pages/**").addResourcesLocations("/page/"); //如果遇到pages目录下的东西就去访问/page/
+            registry.addResourceHandler("/pages/**").addResourceLocations("/page/"); //如果遇到pages目录下的东西就去访问/page/
          }
       }
       //在总的配置类中记得扫描此类
@@ -970,4 +973,165 @@ public class UserController {
       }
    }
 ```
+
 # 3.SSM整合
+
+1. 导入坐标
+
+```java
+   <dependencies>
+    <dependency>
+      <groupId>junit</groupId>
+      <artifactId>junit</artifactId>
+      <version>4.12</version>
+      <scope>test</scope>
+    </dependency>
+    <dependency>
+      <groupId>org.springframework</groupId>
+      <artifactId>spring-test</artifactId>
+      <version>5.2.10.RELEASE</version>
+    </dependency>
+    <dependency>
+      <groupId>org.springframework</groupId>
+      <artifactId>spring-context</artifactId>
+      <version>5.2.10.RELEASE</version>
+    </dependency>
+    <dependency>
+      <groupId>org.springframework</groupId>
+      <artifactId>spring-webmvc</artifactId>
+      <version>5.2.10.RELEASE</version>
+    </dependency>
+    <dependency>
+      <groupId>org.springframework</groupId>
+      <artifactId>spring-jdbc</artifactId>
+      <version>5.2.10.RELEASE</version>
+    </dependency>
+    <dependency>
+      <groupId>org.mybatis</groupId>
+      <artifactId>mybatis-spring</artifactId>
+      <version>2.0.0</version>
+    </dependency>
+    <dependency>
+      <groupId>com.alibaba</groupId>
+      <artifactId>druid</artifactId>
+      <version>1.1.16</version>
+    </dependency>
+    <dependency>
+      <groupId>javax.servlet</groupId>
+      <artifactId>javax.servlet-api</artifactId>
+      <version>3.1.0</version>
+      <scope>provided</scope>
+    </dependency>
+    <dependency>
+      <groupId>com.fasterxml.jackson.core</groupId>
+      <artifactId>jackson-databind</artifactId>
+      <version>2.9.0</version>
+    </dependency>
+    <dependency>
+      <groupId>mysql</groupId>
+      <artifactId>mysql-connector-java</artifactId>
+      <version>5.1.46</version>
+    </dependency>
+    <dependency>
+      <groupId>org.mybatis</groupId>
+      <artifactId>mybatis</artifactId>
+      <version>3.5.5</version>
+    </dependency>
+
+  </dependencies>
+
+  <build>
+    <plugins>
+      <plugin>
+        <groupId>org.apache.tomcat.maven</groupId>
+        <artifactId>tomcat7-maven-plugin</artifactId>
+        <version>2.1</version>
+        <configuration>
+          <port>80</port>
+          <path>/</path>
+        </configuration>
+      </plugin>
+    </plugins>
+  </build>
+```
+
+2. 数据库对应的数据类
+   
+```java
+public class User {
+    private Integer id;
+    private String NAME;
+    private Integer age;
+public User(Integer id, String NAME, Integer age) {
+        this.id = id;
+        this.NAME = NAME;
+        this.age = age;
+}
+public Integer getId() {return id;}
+public void setId(Integer id) {this.id = id;}
+public String getNAME() {return NAME;}
+public void setNAME(String NAME) {this.NAME = NAME;}
+public Integer getAge() {return age;}
+public void setAge(Integer age) {this.age = age;}
+@Override
+public String toString() {return "User{" +"id=" + id +", NAME='" + NAME + '\'' +", age=" + age +'}';}
+   }
+```
+3. 配置springmvc配置类，见2.3.2/900
+```java
+@Configuration
+@ComponentScan({"controller","config"})
+@EnableWebMvc
+public class springMVCconfig {
+}
+```
+4. 配置web容器配置类，见2.1.4/750
+```java
+public class servletConfig extends AbstractAnnotationConfigDispatcherServletInitializer {
+    @Override
+    protected Class<?>[] getRootConfigClasses() { //配spring
+        return new Class[]{SpringConfig.class};
+    }
+    @Override
+    protected Class<?>[] getServletConfigClasses() { //配springmvc
+        return new Class[]{springMVCconfig.class};
+    }
+    @Override
+    protected String[] getServletMappings() {
+        return new String[]{"/"};
+    }
+
+}
+```
+5. 使用restul风格开发表现层bean：controller，见2.3
+```java
+@RestController
+@RequestMapping("/users")
+public class userController {
+    @Autowired
+    private UserService userService;
+  @PostMapping
+    public Result save(@RequestBody User user) {
+        boolean flag=userService.save(user);
+        return new Result(flag,flag?Code.SAVE_OK:Code.SAVE_ERR);
+    }
+ @DeleteMapping("/{id}")
+    public Result delete(@PathVariable Integer id) {
+     boolean flag=userService.delete(id);
+     return new Result(flag,flag?Code.DELETE_OK:Code.DELETE_ERR);
+    }
+  @PutMapping
+    public Result update(@RequestBody User user) {
+      boolean flag=userService.update(user);
+      return new Result(flag,flag?Code.UPDATE_OK:Code.UPDATE_ERR);
+    }
+ @GetMapping
+    public Result select() {
+        List<User>user=userService.select();
+        Integer code=user!=null?Code.SELECT_OK:Code.SELECT_ERR;
+        String msg=user!=null?"":"select fail";
+        return new Result(user,code,msg);
+    }
+}
+```
+6. 
