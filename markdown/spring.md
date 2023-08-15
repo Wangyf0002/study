@@ -912,7 +912,7 @@ public class UserController {
   public String save(@DateTimeFormat(pattern="yyyy-MM-dd HH:mm:ss") Date date){···} //发送2020-2-2 8:08:08，使用注解自定义格式
   ```
 
-## 2.3 响应（告诉服务器收到了）
+## 2.4 响应（告诉服务器收到了）
 
 * 响应/跳转页面
 
@@ -945,7 +945,7 @@ public class UserController {
       }
   ```
 
-  ## 2.3 REST风格
+## 2.5 REST风格
 
 
   > **一种资源的访问形式**
@@ -974,7 +974,7 @@ public class UserController {
    }
 ```
 
-# 3.SSM整合
+## 2.6 SSM整合
 
 1. 导入坐标
 
@@ -1077,12 +1077,62 @@ public void setAge(Integer age) {this.age = age;}
 public String toString() {return "User{" +"id=" + id +", NAME='" + NAME + '\'' +", age=" + age +'}';}
    }
 ```
-3. 配置springmvc配置类，见2.3.2/900
+3. 配置类
 ```java
 @Configuration
 @ComponentScan({"controller","config"})
 @EnableWebMvc
-public class springMVCconfig {
+public class springMVCconfig { //配置springmvc,见2.3.2/900
+}
+
+@Configuration
+@ComponentScan({"controller","userData","userService"})
+@PropertySource("classpath:jdbc.properties")
+@Import({jdbcConfig.class,mybatisConfig.class})
+@EnableTransactionManagement //开启事务接口
+public class SpringConfig { //配置spring,见1.2.2.2/110
+}
+
+public class jdbcConfig { //配置jdbc配置类，见
+    @Value("${jdbc.driver}") //使用1.4.2.5的依赖注入
+    private String driver;
+    @Value("${jdbc.url}")
+    private String url;
+    @Value("${jdbc.username}")
+    private String username;
+    @Value("${jdbc.password}")
+    private String password;
+    @Bean
+    public DataSource dataSource(){
+        DruidDataSource druidDataSource=new DruidDataSource();
+        druidDataSource.setDriverClassName(driver);
+        druidDataSource.setUrl(url);
+        druidDataSource.setUsername(username);
+        druidDataSource.setPassword(password);
+        return druidDataSource;
+    }
+    @Bean
+    public PlatformTransactionManager transactionManager(DataSource dataSource){ //事务管理器
+        DataSourceTransactionManager dataSourceTransactionManager=new DataSourceTransactionManager();
+        dataSourceTransactionManager.setDataSource(dataSource);
+        return dataSourceTransactionManager;
+    }
+}
+
+public class mybatisConfig { //mybatis配置类，见1.2.2.2/95
+    @Bean
+    public SqlSessionFactoryBean sqlSessionFactoryBean(DataSource dataSource){
+        SqlSessionFactoryBean sqlSessionFactoryBean=new SqlSessionFactoryBean();
+        sqlSessionFactoryBean.setDataSource(dataSource);
+        sqlSessionFactoryBean.setTypeAliasesPackage("user");
+        return sqlSessionFactoryBean;
+    }
+    @Bean
+    public MapperScannerConfigurer mapperScannerConfigurer(){
+        MapperScannerConfigurer mapperScannerConfigurer=new MapperScannerConfigurer();
+        mapperScannerConfigurer.setBasePackage("userData");
+        return mapperScannerConfigurer;
+    }
 }
 ```
 4. 配置web容器配置类，见2.1.4/750
@@ -1103,7 +1153,20 @@ public class servletConfig extends AbstractAnnotationConfigDispatcherServletInit
 
 }
 ```
-5. 使用restul风格开发表现层bean：controller，见2.3
+5. 阻止springmvc访问拦截前端页面
+```java
+@Configuration
+public class springmvcSupport extends WebMvcConfigurationSupport {//2.1.5.8/822
+    @Override
+    protected void addResourceHandlers(ResourceHandlerRegistry registry){
+        registry.addResourceHandler("/pages/**").addResourceLocations("/page/"); //如果遇到pages目录下的东西就去访问/page/
+        registry.addResourceHandler("/css/**").addResourceLocations("/css/");
+        registry.addResourceHandler("/js/**").addResourceLocations("/js/");
+        registry.addResourceHandler("/plugins/**").addResourceLocations("/plugins/");
+    }
+}
+```
+6. 使用restul风格开发表现层bean：controller，见2.3-2.5
 ```java
 @RestController
 @RequestMapping("/users")
@@ -1134,4 +1197,265 @@ public class userController {
     }
 }
 ```
-6. 
+7. 数据层接口
+```java
+public interface UserData {
+    @Insert("insert into stu values (null,#{NAME},#{age})")
+    public int save(User user);
+    @Delete("delete from stu where id=#{id}")
+    public int delete(Integer id);
+    @Update("update stu set NAME= #{NAME},age=#{age}) where id=#{id}}")
+    public int update(User user);
+    @Select("select *from stu")
+    public List<User> select();
+}
+```
+8. 服务层接口和实现类
+```java
+@Transactional //事务注解，1.6.1/650
+public interface UserService {
+    /**
+     * 保存
+     * @param user
+     * @return
+     */
+    public boolean save(User user);
+    /**
+     * 删除
+     * @param id
+     * @return
+     */
+    public boolean delete(Integer id);
+    /**
+     * 修改
+     * @param user
+     * @return
+     */
+    public boolean update(User user);
+    /**
+     * 查询
+     * @return
+     */
+    public List<User> select();
+}
+
+@Service
+public class UserServiceImpl implements UserService{
+    @Autowired
+    private UserData userData;
+    @Override
+    public boolean save(User user) {
+        return userData.save(user)>0;
+    }
+    @Override
+    public boolean delete(Integer id) {
+        return userData.delete(id)>0;
+    }
+    @Override
+    public boolean update(User user) {
+        return userData.update(user)>0;
+    }
+    @Override
+    public List<User> select() {
+        try{ //模拟下异常
+            int i=1/0;
+        }catch (Exception exception){
+            throw new SystemException("shabi",exception,Code.SYSTEM_ERR);
+        }
+        return userData.select();
+    }
+}
+```
+9. 写测试类
+```java
+@RunWith(SpringJUnit4ClassRunner.class)
+@ContextConfiguration(classes = SpringConfig.class)
+public class userServiceTest {
+    @Autowired
+    private UserService userService;
+    @Test
+    public void test(){
+        List<User> user=userService.select();
+        System.out.println(user);
+    }
+}
+
+```
+10. 定义前端返回值的包装类
+```java
+public class Result {
+    private Object data;
+    private Integer code;
+    private String msg;
+public Result(Object data, Integer code, String msg) {this.data = data;this.code = code;this.msg = msg;}
+public Result(Object data, Integer code) {this.data = data;this.code = code;}
+public Object getData() {return data;}
+public void setData(Object data) {this.data = data;}
+public Integer getCode() {return code;}
+public void setCode(Integer code) {this.code = code;}
+public String getMsg() {return msg;}
+public void setMsg(String msg) { this.msg = msg; }
+}
+
+public class Code { //code类
+    public static final Integer SAVE_OK=20011;
+    public static final Integer DELETE_OK=20021;
+    public static final Integer UPDATE_OK=20031;
+    public static final Integer SELECT_OK=20041;
+
+    public static final Integer SAVE_ERR=20010;
+    public static final Integer DELETE_ERR=20020;
+    public static final Integer UPDATE_ERR=20030;
+    public static final Integer SELECT_ERR=20040;
+
+    public static final Integer SYSTEM_ERR=50001;
+    public static final Integer BUSINESS_ERR=50002;
+}
+
+```
+11. 异常处理类
+```java
+@RestControllerAdvice //处理rest风格开发的controller
+public class doException {
+    @ExceptionHandler(SystemException.class)//拦截某一类的异常
+    public Result doSystemException(SystemException exception){
+        return new Result(null,exception.getCode());
+    }
+    @ExceptionHandler(BusinessException.class)
+    public Result doBusinessException(BusinessException exception){
+        return new Result(null,exception.getCode());
+    }
+}
+```
+12. 定义具体的异常类
+```java
+public class BusinessException extends RuntimeException{ //三个参数，data，code，msg
+    private Integer code;
+    public BusinessException(String message, Integer code) {
+        super(message);
+        this.code = code;
+    }
+    public BusinessException(String message, Throwable cause, Integer code) {
+        super(message, cause);
+        this.code = code;
+    }
+    public Integer getCode() {
+        return code;
+    }
+    public void setCode(Integer code) {
+        this.code = code;
+    }
+}
+```
+## 2.7 拦截器
+>作用：在指定的方法调用前面执行或阻止原始方法的执行
+>作用域：属于springmvc，故只能对springmvc的访问进行处理（而filter属于servlet技术，可以对所有访问进行处理）
+>拦截器链：如果有多个拦截器，运行顺序同配置顺序，停止顺序与前面相反，可以理解为用栈来放置的拦截器
+```java
+@Component
+public class ProjectInterceptor implements HandlerInterceptor { //配置拦截器
+    @Override //拦截之前的代码                  //可以取出请求和响应中的数据，见下                对原始方法调用的封装，可以操作原始执行的方法
+    public boolean preHandle(HttpServletRequest request, HttpServletResponse response, Object handler) throws Exception {
+         String s=request.getHeader("Content-Type");//取出发送的请求中的一种数据
+//return false则是拦截原始操作，故不会执行所有的postHandle方法和包含此拦截器及后面拦截器的afterCompletion方法，但会执行配置前面拦截器的afterCompletion方法
+        return true;
+    }
+    @Override //拦截之后的代码                                                                                进行页面跳转的相关数据
+    public void postHandle(HttpServletRequest request, HttpServletResponse response, Object handler, ModelAndView modelAndView) throws Exception {
+        ···
+    }
+    @Override //最后执行的代码                                                                                   异常对象
+    public void afterCompletion(HttpServletRequest request, HttpServletResponse response, Object handler, Exception ex) throws Exception {
+       ···
+    }
+}
+
+@Configuration
+public class springmvcSupport extends WebMvcConfigurationSupport {
+    @Autowired
+    private ProjectInterceptor projectInterceptor;
+    @Override //在2.6.5中加入开启拦截器的路径
+    protected void addInterceptors(InterceptorRegistry registry) {
+                                 //拦截器对象                         拦截路径
+        registry.addInterceptor(projectInterceptor).addPathPatterns("/users");//只能拦截/users，要想拦截users后的全部路径，写/users/*
+    }
+}
+//也可以和springmvc的配置类合并，如：
+@Configuration
+@ComponentScan({"controller"})
+@EnableWebMvc
+public class springMVCconfig {
+   @Autowired
+    private ProjectInterceptor projectInterceptor;
+    @Override 
+    protected void addInterceptors(InterceptorRegistry registry) {
+        registry.addInterceptor(projectInterceptor).addPathPatterns("/users");//只能拦截/users，要想拦截users后的全部路径，写/users/*
+    }
+}
+ 
+```
+# 3. Maven
+## 3.1 分模块开发思想
+1. 创建一个新的模块，抽离原模块中的类，并放置在相同目录下
+2. 新模块通过maven install加载到本地仓库
+3. 原模块pom中导入新模块的依赖
+```java
+<groupId>org.example</groupId>
+<artifactId>maven_ssm_user</artifactId>
+<version>1.0-SNAPSHOT</version>
+```
+## 3.2依赖
+>传递性：可以使用依赖中的依赖
+>冲突：选择层级越浅，相同层时配置顺序越靠前，相同文件中配置顺序越靠后的
+>可选依赖（不想让别人知道，失去传递性）：依赖a中打开：`<optional>true</optional>`；自己的b中这还会显示依赖a，但别人依赖b时不会显示a
+>排除依赖（不想用别人的）：依赖b中设置`<exclusions><exclusion>依赖a的groupip和artifact</exclusion></exclusions>`；把别人依赖b中的依赖a踢走
+
+## 3.3 聚合
+>多个模块组成整个，统一（按依赖关系顺序）构建和管理
+```java
+<packaging>pom</packaging>  //聚合模块中只有一个pom文件
+<modules>
+   <module>../xxxxx</module> //聚合的模块
+<modules>
+```
+
+## 3.4 继承
+>继承父工程的配置信息
+```java
+<parent> //在子工程中描述
+   父工程的坐标
+   <relativePath>../父工程的路径</relativePath>
+</parent>
+
+<dependencyManagement> //在父工程中描述，子工程中加入不带版本的依赖
+   <dependencies>
+      可选的依赖
+   </dependencies>
+</dependencyManagement>
+```
+## 3.5 属性
+>定义变量来定义统一管理
+```java
+<properties>//父工程中
+   <属性名>属性值</属性名>
+</properties>
+
+<标签>${属性名}</标签>//被替代的地方
+```
+>资源文件引用pom的属性
+```java
+<properties>
+   <属性名，如jdbc.urlnum>属性值</属性名> //1.定义属性
+</properties>
+
+jdbc.url=${jdbc.urlnum} //2.资源文件中使用属性名
+
+<build>
+   <resources>
+      <resource>
+         <directory>${project.basedir}/目录{/directory} //3.资源文件中加载属性过滤器
+         <filtering>true </filtering>
+      </resource>
+   </resources>
+</build>
+```
