@@ -947,11 +947,10 @@ public class UserController {
 
 ## 2.5 REST风格
 
+> **一种资源的访问形式**
+> 由这种 localhost/user/add 表示保存，localhost/user/delete 表示删除
+> 到localhost/users 使用POST请求格式表示保存，PUT格式表示删除
 
-  > **一种资源的访问形式**
-  > 由这种 localhost/user/add 表示保存，localhost/user/delete 表示删除
-  > 到localhost/users 使用POST请求格式表示保存，PUT格式表示删除
-  >
 * GET：从服务器取出资源（一项或多项）
 * POST：在服务器新建一个资源
 * PUT：在服务器更新资源（更新完整资源）
@@ -1056,7 +1055,7 @@ public class UserController {
 ```
 
 2. 数据库对应的数据类
-   
+
 ```java
 public class User {
     private Integer id;
@@ -1077,7 +1076,9 @@ public void setAge(Integer age) {this.age = age;}
 public String toString() {return "User{" +"id=" + id +", NAME='" + NAME + '\'' +", age=" + age +'}';}
    }
 ```
+
 3. 配置类
+
 ```java
 @Configuration
 @ComponentScan({"controller","config"})
@@ -1135,7 +1136,9 @@ public class mybatisConfig { //mybatis配置类，见1.2.2.2/95
     }
 }
 ```
+
 4. 配置web容器配置类，见2.1.4/750
+
 ```java
 public class servletConfig extends AbstractAnnotationConfigDispatcherServletInitializer {
     @Override
@@ -1153,7 +1156,9 @@ public class servletConfig extends AbstractAnnotationConfigDispatcherServletInit
 
 }
 ```
+
 5. 阻止springmvc访问拦截前端页面
+
 ```java
 @Configuration
 public class springmvcSupport extends WebMvcConfigurationSupport {//2.1.5.8/822
@@ -1166,7 +1171,9 @@ public class springmvcSupport extends WebMvcConfigurationSupport {//2.1.5.8/822
     }
 }
 ```
+
 6. 使用restul风格开发表现层bean：controller，见2.3-2.5
+
 ```java
 @RestController
 @RequestMapping("/users")
@@ -1197,7 +1204,9 @@ public class userController {
     }
 }
 ```
+
 7. 数据层接口
+
 ```java
 public interface UserData {
     @Insert("insert into stu values (null,#{NAME},#{age})")
@@ -1210,7 +1219,9 @@ public interface UserData {
     public List<User> select();
 }
 ```
+
 8. 服务层接口和实现类
+
 ```java
 @Transactional //事务注解，1.6.1/650
 public interface UserService {
@@ -1266,7 +1277,9 @@ public class UserServiceImpl implements UserService{
     }
 }
 ```
+
 9. 写测试类
+
 ```java
 @RunWith(SpringJUnit4ClassRunner.class)
 @ContextConfiguration(classes = SpringConfig.class)
@@ -1281,7 +1294,9 @@ public class userServiceTest {
 }
 
 ```
+
 10. 定义前端返回值的包装类
+
 ```java
 public class Result {
     private Object data;
@@ -1313,7 +1328,9 @@ public class Code { //code类
 }
 
 ```
+
 11. 异常处理类
+
 ```java
 @RestControllerAdvice //处理rest风格开发的controller
 public class doException {
@@ -1327,7 +1344,9 @@ public class doException {
     }
 }
 ```
+
 12. 定义具体的异常类
+
 ```java
 public class BusinessException extends RuntimeException{ //三个参数，data，code，msg
     private Integer code;
@@ -1347,10 +1366,13 @@ public class BusinessException extends RuntimeException{ //三个参数，data�
     }
 }
 ```
+
 ## 2.7 拦截器
->作用：在指定的方法调用前面执行或阻止原始方法的执行
->作用域：属于springmvc，故只能对springmvc的访问进行处理（而filter属于servlet技术，可以对所有访问进行处理）
->拦截器链：如果有多个拦截器，运行顺序同配置顺序，停止顺序与前面相反，可以理解为用栈来放置的拦截器
+
+> 作用：在指定的方法调用前面执行或阻止原始方法的执行
+> 作用域：属于springmvc，故只能对springmvc的访问进行处理（而filter属于servlet技术，可以对所有访问进行处理）
+> 拦截器链：如果有多个拦截器，运行顺序同配置顺序，停止顺序与前面相反，可以理解为用栈来放置的拦截器
+
 ```java
 @Component
 public class ProjectInterceptor implements HandlerInterceptor { //配置拦截器
@@ -1394,24 +1416,32 @@ public class springMVCconfig {
 }
  
 ```
+
 # 3. Maven
+
 ## 3.1 分模块开发思想
+
 1. 创建一个新的模块，抽离原模块中的类，并放置在相同目录下
 2. 新模块通过maven install加载到本地仓库
 3. 原模块pom中导入新模块的依赖
+
 ```java
 <groupId>org.example</groupId>
 <artifactId>maven_ssm_user</artifactId>
 <version>1.0-SNAPSHOT</version>
 ```
+
 ## 3.2依赖
->传递性：可以使用依赖中的依赖
->冲突：选择层级越浅，相同层时配置顺序越靠前，相同文件中配置顺序越靠后的
->可选依赖（不想让别人知道，失去传递性）：依赖a中打开：`<optional>true</optional>`；自己的b中这还会显示依赖a，但别人依赖b时不会显示a
->排除依赖（不想用别人的）：依赖b中设置`<exclusions><exclusion>依赖a的groupip和artifact</exclusion></exclusions>`；把别人依赖b中的依赖a踢走
+
+> 传递性：可以使用依赖中的依赖
+> 冲突：选择层级越浅，相同层时配置顺序越靠前，相同文件中配置顺序越靠后的
+> 可选依赖（不想让别人知道，失去传递性）：依赖a中打开：`<optional>true</optional>`；自己的b中这还会显示依赖a，但别人依赖b时不会显示a
+> 排除依赖（不想用别人的）：依赖b中设置 `<exclusions><exclusion>依赖a的groupip和artifact</exclusion></exclusions>`；把别人依赖b中的依赖a踢走
 
 ## 3.3 聚合
->多个模块组成整个，统一（按依赖关系顺序）构建和管理
+
+> 多个模块组成整个，统一（按依赖关系顺序）构建和管理
+
 ```java
 <packaging>pom</packaging>  //聚合模块中只有一个pom文件
 <modules>
@@ -1420,7 +1450,9 @@ public class springMVCconfig {
 ```
 
 ## 3.4 继承
->继承父工程的配置信息
+
+> 继承父工程的配置信息
+
 ```java
 <parent> //在子工程中描述
    父工程的坐标
@@ -1433,8 +1465,11 @@ public class springMVCconfig {
    </dependencies>
 </dependencyManagement>
 ```
+
 ## 3.5 属性
->定义变量来定义统一管理
+
+> 定义变量来定义统一管理
+
 ```java
 <properties>//父工程中
    <属性名>属性值</属性名>
@@ -1442,7 +1477,9 @@ public class springMVCconfig {
 
 <标签>${属性名}</标签>//被替代的地方
 ```
->资源文件引用pom的属性
+
+> 资源文件引用pom的属性
+
 ```java
 <properties>
    <属性名，如jdbc.urlnum>属性值</属性名> //1.定义属性
@@ -1453,9 +1490,82 @@ jdbc.url=${jdbc.urlnum} //2.资源文件中使用属性名
 <build>
    <resources>
       <resource>
-         <directory>${project.basedir}/目录{/directory} //3.资源文件中加载属性过滤器
-         <filtering>true </filtering>
+         <directory>${project.basedir}/jdbc文件目录{/directory} //3.父工程资源文件中加载属性过滤器，让2中${}符号可以被解析
+         <filtering>true</filtering>
       </resource>
    </resources>
 </build>
+
+<plugin> //4.父工程<build>中配置忽略maven打包时的web.xml必须性的检查
+   <groupId>org.apache.maven.plugins</groupId>
+      <artifactId>maven-war-plugin</artifactId>
+      <version>3.2.3</version>
+   <configuration>
+      <failOnMissingWebxml>false</failOnMissingWebxml>
+   </configuration>
+</plugin>
 ```
+
+> maven 系统属性
+> ![1692185375259](image/spring/1692185375259.png)
+
+## 3.6 多环境开发
+
+```java
+<profiles>
+  <profile> //一个环境一个profile
+   <id>某环境的唯一标识</id>
+   <properties>
+      <jdbc.url>此环境中专用的属性值</jdbc.url>
+   <properties/>
+   <activation>
+        <activeByDefault>true</activeByDefault> //设为默认启动
+   </activation>
+   </profile>
+  </profiles>
+```
+
+> maven指令：`mvn install -p 环境id`
+
+## 3.7 跳过测试:三种方法
+
+```java
+<plugin>
+   <artifactId>maven-surefire-plugin</artifactId>
+   <version>2.12.4</version>
+   <configuration>
+      <skipTests>false</skipTests> //设置是否跳过测试
+      <excludes>**/test.java</excludes> //可以指定上面的操作（不）包含具体哪个测试类
+   </configuration>
+</plugin>
+```
+
+2. `mvn install -D skipTests`
+3. 闪电按钮
+
+## 3.8 私服
+
+* 启动：bin目录下cmd `nexus.exe /run nexus`
+* 访问：localhost:8081
+* 仓库：
+  >宿主仓库hosted(小组内自己用仓库):自研+外部资源;关联上传操作
+  >代理仓库proxy（全部公用的）:代理连接中央仓库;关联下载
+  >仓库组group（小组公用仓库组）:简化下载;关联下载
+* 上传配置
+```java
+<distributionManagement>
+   <repository>
+      <id>wang-release</id>
+      <url>http://localhost:8081/repository/wang-release/</url>
+   </repository>
+   <snapshotRepository>
+      <id>wang-snapshot</id>
+      <url>http://localhost:8081/repository/wang-snapshot/</url>
+   </snapshotRepository>
+</distributionManagement>
+```
+
+
+
+         
+    
