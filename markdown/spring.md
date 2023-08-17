@@ -1501,7 +1501,7 @@ jdbc.url=${jdbc.urlnum} //2.资源文件中使用属性名
       <artifactId>maven-war-plugin</artifactId>
       <version>3.2.3</version>
    <configuration>
-      <failOnMissingWebxml>false</failOnMissingWebxml>
+      <failOnMissingWebXml>false</failOnMissingWebXml>
    </configuration>
 </plugin>
 ```
@@ -1564,7 +1564,10 @@ jdbc.url=${jdbc.urlnum} //2.资源文件中使用属性名
    </snapshotRepository>
 </distributionManagement>
 ```
+# 4 Springboot
+## 4.1 入门案例
 
+>快速启动：对springboot工程package后在文件目录下执行`java -jar 项目名称.jar（首字母+tab键）`（还需要有spring-boot-maven-plugin插件）
 
 
          
