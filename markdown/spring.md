@@ -1564,11 +1564,288 @@ jdbc.url=${jdbc.urlnum} //2.资源文件中使用属性名
    </snapshotRepository>
 </distributionManagement>
 ```
-# 4 Springboot
-## 4.1 入门案例
-
+# 4.Springboot
+## 4.1 案例
+### 4.1.1 入门
+ 创建一个controller类即可
 >快速启动：对springboot工程package后在文件目录下执行`java -jar 项目名称.jar（首字母+tab键）`（还需要有spring-boot-maven-plugin插件）
 
+### 4.1.2 测试
+```java
+@SpringBootTest(class="xxx.class") //测试注解,如果测试类在boot启动类的（子）包中，括号内可省略
+class test{
+   @Autowired
+   private UserService userService;//注入待测试接口
+   @Test
+   public void test1(){
+      userService.save();//待测试接口中方法
+   }
+}
+```
+### 4.1.3 整合mybatis
+1. 选择mybatis和mysql的初始配置
+2. 设置数据源参数
+```java
+spring:
+   datasource:
+      type:com.alibaba.druid.pool.DruidDataSource
+      driver-class-name:com.mysql.cj.jdbc.Driver
+      url:jdbc:mysql://localhost:3306/test?serveTimezone=UTC
+      username:root
+      password:1234
+```
+3. 设置数据层接口与映射格式
+```java
+@Mapper //看到此注解就自动创造代理类
+public interface UserData {
+    @Insert("insert into stu values (null,#{NAME},#{age})")
+    public int save(User user);
+}
+```
+4. 测试类，见4.1.2
 
-         
+### 4.1.4 整合ssm
+1. pom中添加必要的依赖（如druid）
+2. 数据源配置文件改为.yml格式，见上面的2
+3. 设置数据层接口与映射格式，见上面的3
+4. 页面文件放在resources中的static文件夹
+
+## 4.2 基本配置
+### 4.2.1 属性配置方式
+>优先级：1>2>3 
+1. .properties文件中：`server.port=80`
+2. .yml文件中：
+```java
+server: //不同缩进代表不同的层级,如server.port
+ port:（这里有个空格）80 
+```
+3. .yaml文件中：同上
+
+### 4.2.2 yaml格式
+- 井号#表示注释
+- 数组格式如下
+  ```java
+  user:
+   - name
+   - value
+  ```
+### 4.2.3 yaml数据读取
+```java
+#设某一.yml文件数据如下
+layer: one #单层级
+
+server:      #多层级
+  port: 80
+
+user:
+  name: wang  #多层级带数组
+  likes:
+    - java
+    - niuniu
+```
+```java
+@RestController
+@RequestMapping("/users")
+public class userController { //控制器类
+    //方法1
+    @Value("${layer}")
+    private String layer;
+    @Value("${server.port}")
+    private Integer port;
+    @Value("${user.likes[0]}")
+    private String user_likes_0;
+   //方法2
+    @Autowired
+    private Environment environment;
+    //方法3
+    @Autowired
+    private users u;
+
+@GetMapping("/{id}")
+    public String getById(@PathVariable Integer id){
+        //方法1
+        System.out.println(layer);
+        System.out.println(port);
+        System.out.println(user_likes_0);
+        //方法2
+        System.out.println(environment.getProperty("layer"));
+        System.out.println(environment.getProperty("server.port"));
+        System.out.println(environment.getProperty("user.likes[0]"));
+        //方法3
+        System.out.println(u);
+        return "hello";
+    }
+}
+
+@Component
+@ConfigurationProperties(prefix = "user")//方法3实体类
+public class users {
+    private String name;
+    private String[] likes;
+    ···//构造方法，getter和setter方法，略
+}
+```
+### 4.2.4 多环境
+>.yml环境配置：
+```java
+spring:    # 当前环境
+  profiles:
+    active: test
+---
+server:   # 提供的备选环境
+  port: 80
+
+spring:
+  config:
+    activate:
+      on-profile: pro
+---
+server:
+  port: 81
+
+spring:
+  config:
+    activate:
+      on-profile: test
+```
+>.properties环境配置：
+>主配置文件`x.properties`中`spring.profiles.active=环境名`，各个配置文件`x-环境名.properties`中写具体的配置，如`server.port=80`
+
+>多环境命令行启动:
+`4.1中的语句 (--如需要则加上需要修改的参数，如--server.port=90) --spring.profiles.active=环境名`
+
+>跟随pom.xml文件中的环境配置
+```java
+<profiles> //maven中设定的多环境
+  <profile> 
+   <id>某环境的唯一标识</id>
+   <properties>
+      <aaa>此环境中专用的属性值</aaa>
+   <properties/>
+   </profile>
+  </profiles>
+
+<plugin> //加入允许pom解析占位符的插件
+  <groupId>org.apache.maven.plugins</groupId>
+  <artifactId>maven-resources-plugin</artifactId>
+  <version>3.2.0</version>
+   <configuration>
+      <encoding>UTF-8</encoding>
+      <useDefaultDelimiters>true</useDefaultDelimiters>
+   </configuration>
+</plugin>
+
+spring:   //boot中引用
+  profiles:
+    active: ${aaa}
+---
+```
+### 4.2.5 配置文件层级
+1. (最高级)jar包所在目录下config文件夹中的x.yml
+2. jar包所在目录下的x.yml  
+3. 类路径（如idea中的目录）下resources中config文件夹中的x.yml
+4. 类路径（如idea中的目录）下resources中的x.yml       
     
+# 5.MyBatisPlus
+## 5.1 入门案例
+1. 导入依赖
+```java
+<dependency> 
+   <groupId>com.baomidou</groupId>
+   <artifactId>mybatis-plus-boot-starter</artifactId>
+   <version>3.4.1</version>
+</dependency>
+<dependency> //简化实体类
+   <groupId>org.projectlombok</groupId>
+   <artifactId>lombok</artifactId>
+</dependency>
+//druid的依赖导入略
+```
+2. 设置实体类
+```java
+@TableName("stu")//类名需与表名字母一致，否则加@TableName注解指定名称
+@Data //包含下面注释的注解
+//@Setter，写了这些注解就不用手动写具体的方法了
+//@Getter
+//@ToString
+//@EqualsAndHashCode
+@NoArgsConstructor
+@AllArgsConstructor
+public class User {
+    private Integer id;
+    //属性名需与表中列名一致，否则主键用@TableId注解指定名称，其他属性用@TableField注解指定名称
+    @TableField("NAME")
+    private String name;
+    private Integer age;
+}
+```
+3. 设定数据源参数，见4.1节中的.yml文件
+4. 定义数据接口
+```java
+@Mapper
+public interface UserDao extends BaseMapper<User> {
+}
+```
+1. 测试
+```java
+@SpringBootTest
+class MybatisplusApplicationTests {
+    @Autowired
+    private UserDao userDao;
+    @Test
+    void test() {
+        List<User> users=userDao.selectList(null);
+        System.out.println(users);
+    }
+}
+```
+## 5.2 标准CRUD操作
+```java
+@Test
+void plus() {//1.新增
+   User user=new User();
+   user.setId(7);
+   user.setAge(23);
+   user.setName("罗");
+   userDao.insert(user);
+}
+
+@Test
+void delete(){//2.删除
+   userDao.deleteById(7);
+}
+
+@Test
+void update(){//3.更改
+   User user=new User();
+   user.setId(1);
+   user.setAge(23);
+   userDao.updateById(user);
+}
+
+@Test
+void select(){//4.查找
+   User user=userDao.selectById(1);
+   System.out.println(user);
+}
+
+@Test
+void testByPage(){//5.分页查询
+ IPage iPage=new Page(1,3);//当前页，每页几条
+ userDao.selectPage(iPage,null);
+ System.out.println("当前页码："+iPage.getCurrent()+"\n"+"每页显示数："+iPage.getSize()+"\n"
+ +"总页数："+iPage.getPages()+"\n"+"总数据数："+iPage.getTotal()+"\n"+
+"数据："+iPage.getRecords()+"\n");
+ }
+ //分页查询需设置分页拦截器做为spring管理的bean
+@Configuration
+public class mybatisPlusConfig {
+    @Bean
+    public MybatisPlusInterceptor pageInterceptor(){
+        MybatisPlusInterceptor mybatisPlusInterceptor=new MybatisPlusInterceptor();
+        mybatisPlusInterceptor.addInnerInterceptor(new PaginationInnerInterceptor());
+        return mybatisPlusInterceptor;
+    }
+}
+//更多的在BaseMapper接口下
+```
