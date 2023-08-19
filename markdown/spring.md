@@ -1548,10 +1548,12 @@ jdbc.url=${jdbc.urlnum} //2.资源文件中使用属性名
 * 启动：bin目录下cmd `nexus.exe /run nexus`
 * 访问：localhost:8081
 * 仓库：
-  >宿主仓库hosted(小组内自己用仓库):自研+外部资源;关联上传操作
-  >代理仓库proxy（全部公用的）:代理连接中央仓库;关联下载
-  >仓库组group（小组公用仓库组）:简化下载;关联下载
+  > 宿主仓库hosted(小组内自己用仓库):自研+外部资源;关联上传操作
+  > 代理仓库proxy（全部公用的）:代理连接中央仓库;关联下载
+  > 仓库组group（小组公用仓库组）:简化下载;关联下载
+  >
 * 上传配置
+
 ```java
 <distributionManagement>
    <repository>
@@ -1564,13 +1566,19 @@ jdbc.url=${jdbc.urlnum} //2.资源文件中使用属性名
    </snapshotRepository>
 </distributionManagement>
 ```
+
 # 4.Springboot
+
 ## 4.1 案例
+
 ### 4.1.1 入门
+
  创建一个controller类即可
->快速启动：对springboot工程package后在文件目录下执行`java -jar 项目名称.jar（首字母+tab键）`（还需要有spring-boot-maven-plugin插件）
+
+> 快速启动：对springboot工程package后在文件目录下执行 `java -jar 项目名称.jar（首字母+tab键）`（还需要有spring-boot-maven-plugin插件）
 
 ### 4.1.2 测试
+
 ```java
 @SpringBootTest(class="xxx.class") //测试注解,如果测试类在boot启动类的（子）包中，括号内可省略
 class test{
@@ -1582,9 +1590,12 @@ class test{
    }
 }
 ```
+
 ### 4.1.3 整合mybatis
+
 1. 选择mybatis和mysql的初始配置
 2. 设置数据源参数
+
 ```java
 spring:
    datasource:
@@ -1594,7 +1605,9 @@ spring:
       username:root
       password:1234
 ```
+
 3. 设置数据层接口与映射格式
+
 ```java
 @Mapper //看到此注解就自动创造代理类
 public interface UserData {
@@ -1602,26 +1615,34 @@ public interface UserData {
     public int save(User user);
 }
 ```
+
 4. 测试类，见4.1.2
 
 ### 4.1.4 整合ssm
+
 1. pom中添加必要的依赖（如druid）
 2. 数据源配置文件改为.yml格式，见上面的2
 3. 设置数据层接口与映射格式，见上面的3
 4. 页面文件放在resources中的static文件夹
 
 ## 4.2 基本配置
+
 ### 4.2.1 属性配置方式
->优先级：1>2>3 
+
+> 优先级：1>2>3
+
 1. .properties文件中：`server.port=80`
 2. .yml文件中：
+
 ```java
 server: //不同缩进代表不同的层级,如server.port
  port:（这里有个空格）80 
 ```
+
 3. .yaml文件中：同上
 
 ### 4.2.2 yaml格式
+
 - 井号#表示注释
 - 数组格式如下
   ```java
@@ -1629,7 +1650,9 @@ server: //不同缩进代表不同的层级,如server.port
    - name
    - value
   ```
+
 ### 4.2.3 yaml数据读取
+
 ```java
 #设某一.yml文件数据如下
 layer: one #单层级
@@ -1643,6 +1666,7 @@ user:
     - java
     - niuniu
 ```
+
 ```java
 @RestController
 @RequestMapping("/users")
@@ -1685,8 +1709,11 @@ public class users {
     ···//构造方法，getter和setter方法，略
 }
 ```
+
 ### 4.2.4 多环境
->.yml环境配置：
+
+> .yml环境配置：
+
 ```java
 spring:    # 当前环境
   profiles:
@@ -1708,13 +1735,15 @@ spring:
     activate:
       on-profile: test
 ```
->.properties环境配置：
->主配置文件`x.properties`中`spring.profiles.active=环境名`，各个配置文件`x-环境名.properties`中写具体的配置，如`server.port=80`
 
->多环境命令行启动:
-`4.1中的语句 (--如需要则加上需要修改的参数，如--server.port=90) --spring.profiles.active=环境名`
+> .properties环境配置：
+> 主配置文件 `x.properties`中 `spring.profiles.active=环境名`，各个配置文件 `x-环境名.properties`中写具体的配置，如 `server.port=80`
 
->跟随pom.xml文件中的环境配置
+> 多环境命令行启动:
+> `4.1中的语句 (--如需要则加上需要修改的参数，如--server.port=90) --spring.profiles.active=环境名`
+
+> 跟随pom.xml文件中的环境配置
+
 ```java
 <profiles> //maven中设定的多环境
   <profile> 
@@ -1740,15 +1769,20 @@ spring:   //boot中引用
     active: ${aaa}
 ---
 ```
+
 ### 4.2.5 配置文件层级
+
 1. (最高级)jar包所在目录下config文件夹中的x.yml
-2. jar包所在目录下的x.yml  
+2. jar包所在目录下的x.yml
 3. 类路径（如idea中的目录）下resources中config文件夹中的x.yml
-4. 类路径（如idea中的目录）下resources中的x.yml       
-    
+4. 类路径（如idea中的目录）下resources中的x.yml
+
 # 5.MyBatisPlus
+
 ## 5.1 入门案例
+
 1. 导入依赖
+
 ```java
 <dependency> 
    <groupId>com.baomidou</groupId>
@@ -1761,7 +1795,9 @@ spring:   //boot中引用
 </dependency>
 //druid的依赖导入略
 ```
+
 2. 设置实体类
+
 ```java
 @TableName("stu")//类名需与表名字母一致，否则加@TableName注解指定名称
 @Data //包含下面注释的注解
@@ -1774,19 +1810,27 @@ spring:   //boot中引用
 public class User {
     private Integer id;
     //属性名需与表中列名一致，否则主键用@TableId注解指定名称，其他属性用@TableField注解指定名称
-    @TableField("NAME")
+    @TableField(value="NAME")
     private String name;
     private Integer age;
+    @Tablefield(select=false)
+    private String password;//设置属性不参与查询
+    @@TableField(exist=false)
+    private boolean online; //定义了数据库没有的属性
 }
 ```
+
 3. 设定数据源参数，见4.1节中的.yml文件
 4. 定义数据接口
+
 ```java
 @Mapper
 public interface UserDao extends BaseMapper<User> {
 }
 ```
+
 1. 测试
+
 ```java
 @SpringBootTest
 class MybatisplusApplicationTests {
@@ -1799,7 +1843,9 @@ class MybatisplusApplicationTests {
     }
 }
 ```
+
 ## 5.2 标准CRUD操作
+
 ```java
 @Test
 void plus() {//1.新增
@@ -1847,5 +1893,29 @@ public class mybatisPlusConfig {
         return mybatisPlusInterceptor;
     }
 }
+ @Test
+    void testByCondition(){ //6.条件查询
+        QueryWrapper wrapper =new QueryWrapper();//方式1
+        wrapper.lt("age",30);
+
+        QueryWrapper<User>wrapper =new QueryWrapper<User>();//方式2
+        wrapper.lambda().lt(User::getAge,30);
+
+        LambdaQueryWrapper<User>lambdaQueryWrapper=new LambdaQueryWrapper<User>();//方式3
+        lambdaQueryWrapper.lt(User::getAge,10).gt(User::getAge,30);//10-30：与
+        lambdaQueryWrapper.lt(User::getAge,10).or().gt(User::getAge,30);//小于10或大于30：或
+        //查询逻辑见https://baomidou.com/pages/10c804/#ne
+
+        User user=new User();
+        lambdaQueryWrapper.lt(user.getAge()!=null,User::getAge,10);//设定空值判定，若第一个参数为true则连接当前条件
+
+        wrapper.select("id","name");//编辑查询显示项，按方式2写法，可以列出想要统计的属性
+        wrapper.select("count(*) as nums,age");//按查询不同的age，nums为打印时的别名
+        wrapper.groupBy("age");//分组
+        System.out.println(userDao.selectMaps(wrapper));
+
+        lambdaQueryWrapper.select(User::getAge,User::getName);//编辑查询显示项，按方式3写法,但只能列出实体类中的属性
+
+    }
 //更多的在BaseMapper接口下
 ```
