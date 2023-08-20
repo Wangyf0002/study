@@ -1594,7 +1594,7 @@ class test{
 ### 4.1.3 整合mybatis
 
 1. 选择mybatis和mysql的初始配置
-2. 设置数据源参数
+2. 整合druid，设置数据源参数
 
 ```java
 spring:
@@ -1638,6 +1638,7 @@ public interface UserData {
 server: //不同缩进代表不同的层级,如server.port
  port:（这里有个空格）80 
 ```
+>yml文件中的所有属性设置见 https://docs.spring.io/spring-boot/docs/current/reference/html/application-properties.html
 
 3. .yaml文件中：同上
 
@@ -1656,6 +1657,9 @@ server: //不同缩进代表不同的层级,如server.port
 ```java
 #设某一.yml文件数据如下
 layer: one #单层级
+
+layer1: ${layer}\n #引用数据
+layer1: "${layer}\n" #转义字符生效的引用数据
 
 server:      #多层级
   port: 80
@@ -1681,7 +1685,7 @@ public class userController { //控制器类
    //方法2
     @Autowired
     private Environment environment;
-    //方法3
+    //方法3：封装为实体类
     @Autowired
     private users u;
 
@@ -1808,6 +1812,7 @@ spring:   //boot中引用
 @NoArgsConstructor
 @AllArgsConstructor
 public class User {
+    @TableId(type= IdType.AUTO) //id生成策略设置：AUTO：自增；NONE：不设置；INPUT：自己传；ASSIGN_ID：雪花算法生成id； ASSIGN_UUID：uuid算法生成id
     private Integer id;
     //属性名需与表中列名一致，否则主键用@TableId注解指定名称，其他属性用@TableField注解指定名称
     @TableField(value="NAME")
@@ -1817,7 +1822,19 @@ public class User {
     private String password;//设置属性不参与查询
     @@TableField(exist=false)
     private boolean online; //定义了数据库没有的属性
+    @TableLogic(value = "0",delval = "1")//逻辑删除属性，value为逻辑未删除值
+    private Integer deleteNum; 
 }
+```
+```java
+mybatis-plus:
+  global-config:
+    db-config:
+      id-type: assign_id #全局配置id策略，替代@TableId 
+      table-prefix: tbl_ #全局配置@TableName 表名前缀，如数据库表名tbl_xx，类名为xx，仅在此设置即可
+      logic-delete-field: deleted #逻辑删除相关配置，替代@TableLogic
+      logic-delete-value: 1
+      logic-not-delete-value: 0
 ```
 
 3. 设定数据源参数，见4.1节中的.yml文件
@@ -1828,8 +1845,19 @@ public class User {
 public interface UserDao extends BaseMapper<User> {
 }
 ```
+5. 设置业务层接口和实现类
+```java
+public interface IUserService extends IService<User> {
+}
 
-1. 测试
+@Service
+public class IUserServiceImpl extends ServiceImpl<UserDao,User> implements IUserService{
+
+}
+//当系统自带的方法无法满足自带的方法时，需要自行添加，见2.6.8/1223
+```
+6. 设置表现层，见2.6.6/1177
+7. 测试
 
 ```java
 @SpringBootTest
@@ -1850,7 +1878,6 @@ class MybatisplusApplicationTests {
 @Test
 void plus() {//1.新增
    User user=new User();
-   user.setId(7);
    user.setAge(23);
    user.setName("罗");
    userDao.insert(user);
@@ -1859,6 +1886,8 @@ void plus() {//1.新增
 @Test
 void delete(){//2.删除
    userDao.deleteById(7);
+   userDao.deleteBatchIds(list变量); //多条删除，同理还有多条查询selectBatchIds
+
 }
 
 @Test
@@ -1919,3 +1948,35 @@ public class mybatisPlusConfig {
     }
 //更多的在BaseMapper接口下
 ```
+## 5.3 乐观锁
+1. 实体类中添加version字段
+```java
+@Version
+private Integer version;
+```
+2. 拦截器类中添加乐观锁拦截器
+```java
+mybatisPlusInterceptor.addInnerInterceptor(new OptimisticLockerInnerInterceptor());//添加乐观锁拦截器
+```
+3. 具体修改时先获取version
+```java
+User user=userDao.selectById(1);//先查询，获取version数据
+user.setName("aaa");//要修改的值
+userDao.updateById(user);//修改
+```
+
+## 5.4 代码生成器
+1. 导坐标
+```java
+ <dependency>
+      <groupId>com.baomidou</groupId>
+      <artifactId>mybatis-plus-generator</artifactId>
+      <version>3.4.1</version>
+</dependency>
+<dependency>
+      <groupId>org.apache.velocity</groupId>
+      <artifactId>velocity-engine-core</artifactId>
+      <version>2.3</version>
+</dependency>
+```
+2.配置模板。见 https://baomidou.com/pages/981406/#%E6%95%B0%E6%8D%AE%E5%BA%93%E9%85%8D%E7%BD%AE-datasourceconfig
