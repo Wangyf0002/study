@@ -1719,6 +1719,7 @@ public class users {
 > .yml环境配置：
 
 ```java
+#合并版
 spring:    # 当前环境
   profiles:
     active: test
@@ -1738,13 +1739,35 @@ spring:
   config:
     activate:
       on-profile: test
+
+#分离版
+spring:    # 主启动文件application.yml
+  profiles:
+    active: test
+    group: 
+      "dev": dev,dev_01 #分组，下次执行dev的时候按组名一起执行
+      "pro": pro,pro_01 #有相同指令一起执行时（如active：pro），最后面的生效
+
+server:   # 环境分类配置文件application-pro.yml
+  port: 80
+
+server:  # 环境分类配置文件 application-pro_01.yml
+  port: 81
+
+其他配置 1 # 环境分类配置文件 application-dev.yml
+其他配置2  # 环境分类配置文件 application-dev_01.yml
+
 ```
 
 > .properties环境配置：
+> 
 > 主配置文件 `x.properties`中 `spring.profiles.active=环境名`，各个配置文件 `x-环境名.properties`中写具体的配置，如 `server.port=80`
 
 > 多环境命令行启动:
-> `4.1中的语句 (--如需要则加上需要修改的参数，如--server.port=90) --spring.profiles.active=环境名`
+> 
+> `4.1中的语句 (--如需要则加上临时需要修改的参数，如--server.port=90) --spring.profiles.active=环境名`
+> 
+> 以上--及后面的语句也可在configuration中的program arugemnts中设定，此参数会被默认执行类中的arg参数读取，因此想要设置不携带参数启动可以`SpringApplication.run(MybatisplusApplication.class);`
 
 > 跟随pom.xml文件中的环境配置
 
@@ -1755,22 +1778,15 @@ spring:
    <properties>
       <aaa>此环境中专用的属性值</aaa>
    <properties/>
+   <activation>
+      <activeByDefault>true</activeByDefault>//设置默认启动环境，在一个环境里设置即可
+   </activation>
    </profile>
   </profiles>
 
-<plugin> //加入允许pom解析占位符的插件
-  <groupId>org.apache.maven.plugins</groupId>
-  <artifactId>maven-resources-plugin</artifactId>
-  <version>3.2.0</version>
-   <configuration>
-      <encoding>UTF-8</encoding>
-      <useDefaultDelimiters>true</useDefaultDelimiters>
-   </configuration>
-</plugin>
-
-spring:   //boot中引用
+spring:   //boot中引用，最后用compile
   profiles:
-    active: ${aaa}
+    active: @aaa@
 ---
 ```
 
@@ -1780,6 +1796,119 @@ spring:   //boot中引用
 2. jar包所在目录下的x.yml
 3. 类路径（如idea中的目录）下resources中config文件夹中的x.yml
 4. 类路径（如idea中的目录）下resources中的x.yml
+
+### 4.2.6 自定义配置文件
+* program argumennts中：`--spring config.name=xxx`
+* program argumennts中：`--spring config.location=classpath:/xx.yml,xx.properties`
+
+## 4.3 日志
+
+### 4.3.1设置日志
+```java
+//方法1：
+private static final Logger log=LoggerFactory.getLogger(当前类.class); //创建日志对象
+//在需要记录的地方
+log.debug("xxx");//最低级别
+log.info("xxx");//略低级别
+log.warn("xxx");//中间级别
+log.error("xxx");//高级别
+//方法2：
+<dependecny>
+   <groupId>org.rpojectlombok</groupId> 
+   <artifactId>lombok</artifactId>
+</dependency>
+@Slf4j //日志注解,自动生成的对象就叫log
+
+
+logging: #配置文件中设置日志级别，root表示根节点
+   level:
+      root: info 
+      a: warn  #配置分组的级别
+   
+   group:  #设置分组
+      a: com.xx,com.yy
+```
+### 4.3.2设置日志格式
+```java
+pattern:
+   console: "%d %clr{(%5p) --- [%16t] %-40c{cyan} : %m %n}"//d是日期，clr是颜色，5是最大字符数，t是线程，负号是左对齐，c是类，m是消息，n是换行
+```
+### 4.3.2日志记录到文件
+```java
+logging:
+   file:
+      name: server.log
+   logback:
+      rollingpolicy:
+         max-file-size: 3KB #设置最大单页容量
+         file-name-pattern: server.%d{yyyy-MM-dd}.i%.log #设置分页名，i是序号
+```
+## 4.4 热部署
+>相当于restart，仅加载自定义开发的资源，不加载jar
+```java
+<dependency>
+   <groupId>org.springframework.boot</groupId>
+   <artifactId>spring-boot-devtools</artifactId>
+</dependency>
+
+devtools: #设置不参与热部署的
+ restart:
+   exclude: application.yml,public/**#文件和文件夹
+
+System.setProperty("spring.devtools.restart.enabled","false");//设置高优先级属性禁用热部署
+```
+## 4.5 高级配置
+
+### 4.5.1 @ConfigurationProperties
+```java
+@Bean
+@ConfigurationProperties(prefix = "datasource") //使用注解为第三方bean绑定属性
+public DruidDataSource dataSource{
+   DruidDataSource d=new DruidDataSource();
+   return d;
+}
+@Component
+@ConfigurationProperties(prefix = "user")//这里的命名规范只能使用_ ，数字和小写
+public class users {
+    private String name;//支持松散绑定，忽略 - _ 和大小写
+    private String[] likes;
+    @DurationUnit(ChronoUnit.单位) //时间计量单位
+    private Duration a;
+    @DataSizeUnit(DataUnit.单位) //空间计量单位
+    private DataSize b;
+}
+datasource:
+   driverClassName: com.xx
+user:
+   Name: wang
+   a: 3
+   b: 4
+@SpringBootApplication
+//使用此注解可以将@ConfigurationProperties对应的类加载到spring容器，故此时user类上不应该加@Component
+@EnableConfigurationProperties(user.class)
+public class DemoApplication{} //默认执行类
+```
+### 4.5.2 Bean数据校验
+```java
+<dependency> 
+   <groupId>javax.validation</groupId>
+   <artifactId>validation-api</artifactId>
+</dependency>
+<dependency>
+   <groupId>org.hibernate.validator</groupId>
+   <artifactId>hibernate-validator</artifactId>
+</dependency>
+@Validated //对校验bean开启校验
+@Max(value=8888,message="不能超过8888") //bean的具体字段中设置具体的规则
+```
+### 4.5.3 测试
+1. 设置
+```java
+@SpringBootTest(properties={"a=1"}) //可以为当前测试添加临时属性配置，其中a对应@Value中的字段，优先级高于配置文件
+@SpringBootTest(args={"--a=1"})//作用同上，优先级最高
+@Import(xx.class) //加载当前测试类专用的配置类
+```
+2. 测试表现层
 
 # 5.MyBatisPlus
 
