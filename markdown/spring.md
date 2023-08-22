@@ -1909,6 +1909,43 @@ public class DemoApplication{} //默认执行类
 @Import(xx.class) //加载当前测试类专用的配置类
 ```
 2. 测试表现层
+```java
+@SpringBootTest(webEnvironment = SpringBootTest.WebEnvironment.DEFINED_PORT) //测试类启动web环境，其中参数为默认端口，也可为随机端口RANDOM_PORT
+@AutoConfigureMockMvc //开启虚拟MVC调用
+public class webTest {
+    @Test
+    void test(@Autowired MockMvc mvc) throws Exception {
+        MockHttpServletRequestBuilder builder= MockMvcRequestBuilders.get("/users"); //创建虚拟请求，方法为请求的形式
+        ResultActions actions=mvc.perform(builder);
+         //请求状态匹配
+        StatusResultMatchers status=MockMvcResultMatchers.status(); //定义预期值
+        ResultMatcher ok=status.isOk(); //定义执行状态，这里的isok是结果是否成功
+        actions.andExpect(ok); //预期值与真实值匹配
+         //请求体匹配
+        ContentResultMatchers contentResultMatchers=MockMvcResultMatchers.content();//定义执行结果匹配器
+        ResultMatcher resultMatcher=contentResultMatchers.string("xxx");//定义预期结果，右侧的方法为结果的类型和值
+        actions.andExpect(resultMatcher); 
+         //请求头匹配
+        HesaderResultMatchers status=MockMvcResultMatchers.header(); //定义预期值
+        ResultMatcher resultHeader=header.string("a","b"); //a为头参数，b为其属性值
+        actions.andExpect(resultHeader); 
+    }
+}
+```
+3. 回滚
+```java
+@Transactional //事务回滚注解，测试类操作不会提交至数据库中
+@Rollback(true) //默认为true，想要提交事务设置为false
+```
+
+4. 设置随机值
+```java
+testcase:
+   user: 
+      id: ${random.int} //参数为该值的类型
+      name: wang${random.string} //以wang为开头的随机值
+      carNum: ${random.int(4,10)} //设置开始和结束的范围完全
+```
 
 # 5.MyBatisPlus
 
@@ -2109,3 +2146,268 @@ userDao.updateById(user);//修改
 </dependency>
 ```
 2.配置模板。见 https://baomidou.com/pages/981406/#%E6%95%B0%E6%8D%AE%E5%BA%93%E9%85%8D%E7%BD%AE-datasourceconfig
+
+# 6 数据层解决方案
+
+## 6.1 sql型
+### 6.1.1 hikari数据源
+>数据源文件与mysql相同，但url使用通用datasource配置，放在hikari：上面
+### 6.1.2 JdbcTemplate持久化技术
+```java
+<dependency>
+   <groupId>org.springframework.boot</groupId>
+   <artifactId>spring-boot-starter-jdbc</artifactId>
+</dependency>
+
+@Test 
+void test(@Autowired JdbcTemplate jdbcTemplate){
+   String sql="select * from stu"; //查询语句
+   String sql2="insert into stu values(xxxx)"; //增删改语句
+   RowMapper<User> rm= new RowMapper<User>() { //设置行映射
+      @Override
+      public User mapRow(ResultSet rs, int rowNum) throws SQLException {
+         User temp=new User();
+         temp.setName(rs.getString("罗")); //对结果进行封装
+         return temp;
+      }
+   };
+   List<User>list=jdbcTemplate.query(sql,rm); //执行语句
+   jdbcTemplate.update(sql2); 
+   System.out.println(list);
+}
+
+spring:
+  jdbc:
+    template:
+      fetch-size: -1 #缓存行数
+      query-timeout: -1 #查询超时时间
+      max-rows: 400 #最大行数
+```  
+### 6.1.3 H2数据库
+```java
+<dependency>
+   <groupId>com.h2database</groupId> //包含在mybatisplus中
+   <artifactId>h2</artifactId>
+</dependency>
+<dependency>
+   <groupId>org.springframework.boot</groupId>
+   <artifactId>spring-boot-starter-data-jpa</artifactId>
+</dependency>
+
+spring:
+   h2:
+      console:
+         enabled: true
+         path: /h2 #访问路径 localhost/h2
+```
+## 6.2 nosql型
+### 6.2.1 redis
+>启动：`redis-server.exe redis.windows.conf`//服务端 `redis-cli.exe`//客户端
+```java
+<dependency>
+   <groupId>org.springframework.boot</groupId>
+   <artifactId>spring-boot-starter-data-redis</artifactId>
+</dependency>
+
+spring:
+  redis:
+    host: localhost
+    port: 6379
+
+ @Test
+    void contextLoads(@Autowired StringRedisTemplate redisTemplate) {
+        ValueOperations<String,String> valueOperations =redisTemplate.opsForValue();//获取对象
+        HashOperations hashOperations = redisTemplate.opsForHash(); //获取不同类型的对象
+        valueOperations.set("age",2); //获取数据为get方法
+    }
+
+//定义jedis（默认为lettuce）
+ <dependency>
+   <groupId>redis.clients</groupId>
+   <artifactId>jedis</artifactId>
+</dependency>
+
+spring:
+  redis:
+    client-type: jedis 
+    jedis:
+      pool:
+         max-active: 16 #设置具体属性
+```
+### 6.2.2 mongodb
+>存一些变化速度很快的数据或临时数据
+
+>启动：`mongod --dbpath=指定数据存放目录`//服务端  `mongo`//客户端
+
+操作语句见：https://blog.csdn.net/qq_41853447/article/details/108539155
+
+```java
+<dependency>
+   <groupId>org.springframework.boot</groupId>
+   <artifactId>spring-boot-starter-data-mongodb</artifactId>
+</dependency>
+
+spring:
+   data:
+    mongodb:
+      url: xxx
+
+@Test
+    void contextLoads(@Autowired MongoTemplate mongotemplate) {
+         //new user对象并设置具体属性，略
+        mongotemplate.save(user); //加入数据
+        List<User>list=mongotemplate.findAll(user.class);
+    }
+```
+### 6.2.3 ES
+> 运行elasticsearch.bat
+1. 基础索引
+> PUT: 创建 https://localhost:9200/books //books为索引名称，不可重复
+> GET: 查询
+> DELETE：删除
+2. 分词器
+>加入plugin目录下
+3. 索引创建规则
+>PUT json格式传参
+```html
+{
+   "mappings":{
+      "properties":{
+         "id":{
+            "type":"keyword"
+         },
+         "name":{
+            "type":"text"
+            "analyzer":"ik_max_word" //分词器
+            "copy_to":"all"
+         },
+         "type":{
+            "type":"keyword"
+         },
+         "description":{
+            "type":"text"
+            "analyzer":"ik_max_word" 
+            "copy_to":"all"
+         },
+         "all":{
+            "type":"text"
+            "analyzer":"ik_max_word" 
+         }
+      }
+   }
+}
+```
+4. 文档操作
+4.1 创建
+>POST json格式传参  https://localhost:9200/books/ 方式1：_doc/id的值（不指定id将随机生成）方式2：_create/id的值，如2
+```html
+   "name":"springboot" //属性：数据
+   ···
+```
+4.2 查询
+>GET
+*  查指定id：https://localhost:9200/books/_doc/1
+*  查全部：https://localhost:9200/books/search
+*  条件查询：https://localhost:9200/books/search?q=name:springboot //属性：查询值
+4.3 删除
+>DELETE https://localhost:9200/books/_doc/1
+4.4 修改
+>PUT https://localhost:9200/books/_doc/1 全覆盖修改，提交新的doc，提供的属性更改，不提供的删除
+```html
+   "name":"change" 
+   ···
+```
+>POST  https://localhost:9200/books/_update/1  修改，仅修改现有doc的属性，提供的属性更改
+```html
+{
+   "doc":{
+      "name":"change" 
+   }
+}  
+```
+5. 整合
+```java
+<dependency>
+  <groupId>org.elasticsearch.client</groupId>
+  <artifactId>elasticsearch-rest-high-level-client</artifactId>
+</dependency>
+<dependency>
+   <groupId>com.alibaba</groupId>
+   <artifactId>fastjson</artifactId>
+   <version>1.2.78</version>
+</dependency>
+
+private RestHighLevelClient restHighLevelClient;
+
+    @BeforeEach
+    void setUp() {
+        HttpHost host=HttpHost.create("url地址"); //初始化客户端
+        RestClientBuilder builder= RestClient.builder(host);
+        restHighLevelClient=new RestHighLevelClient(builder);
+    }
+
+    @AfterEach
+    void tearDown() throws IOException{
+        restHighLevelClient.close(); //关闭客户端
+    }
+
+    @Test
+    void test() throws IOException {
+        CreateIndexRequest request=new CreateIndexRequest("users");//创建索引请求 
+        //设置请求中的参数
+        request.source("json数据,见6.2.3.3", XContentType.JSON)；
+        //获取操作索引的客户端对象，调用创建索引的操作
+        restHighLevelClient.indices().create(request, RequestOptions.DEFAULT);
+
+
+        //添加文档
+        User user=userDao.getById(1);//获取id为1的对象
+        IndexRequest request=new IndexRequest("users").id(user.getId().toString());//操作文档的请求
+        String json=JSON.toJSONString(user);//封装类型转为json类型
+        request.source(json,XContentType.JSON);//设置请求中的参数，同上
+        restHighLevelClient.index(request,RequestOptions.DEFAULT);
+
+        //添加所有文档
+        List<User>list=userDao.selectList(null);
+        BulkRequest bulk=new BulkRequest(); //批处理请求
+        for(User user:list){
+            IndexRequest request=new IndexRequest("users").id(user.getId().toString());
+            String json=JSON.toJSONString(user);
+            request.source(json,XContentType.JSON);
+            bulk.add(request);
+        }
+        restHighLevelClient.index(request,RequestOptions.DEFAULT);
+
+        //查询文档:按id查
+        GetRequest request=new GetRequest("users","1");//查询请求
+        GetResponse response=restHighLevelClient.get(request,RequestOptions.DEFAULT);
+        String json=response.getSourceAsString();
+
+        //条件查询
+        SearchRequest request=new SearchRequest("users");//创建查询请求
+        SearchSourceBuilder builer=new SearchSourceBuilder();
+        builder.query(QueryBuilders.termQuery("name","java")); //设置查询条件
+        request.source(builder);
+        SearchResponse response=restHighLevelClient.search(request,RequestOptions.DEFAULT);
+        SearchHits hits=response.getHits(); //得到所有命中数据
+        for(SearchHit hit:hits){ //单次命中结果，对应具体某条数据
+            String source=hit.getSourceAsString();
+            User user=JSON.parseObject(source,User.class);
+        }
+
+    }
+
+```
+## 6.3.整合第三方技术
+### 6.3.1 缓存
+1. springboot缓存技术
+```java
+<dependency>
+   <groupId>org.springframework.boot</groupId>
+   <artifactId>spring-boot-starter-cache</artifactId>
+</dependency>
+
+@EnableCaching //启动类上注解开启缓存
+
+@Cacheable(value="cacheSpace",key="#id") //服务层实现类上注解，前者为缓存位置，后者为缓存中查询索引
+```
