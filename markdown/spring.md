@@ -426,7 +426,6 @@ AOP：不改原有的基础上增强功能
       ```
 
 ## 1.4 注解
-
 ### 1.4.1 配置Bean（替代功能1.2.3）
 
 1. 加入注解
@@ -2210,9 +2209,16 @@ spring:
 </dependency>
 
 spring:
+  cache:
+   type:redis  #使用redis
   redis:
-    host: localhost
+    host: localhost #配置redis服务器
     port: 6379
+
+    cache-null-values: false #是否缓存空值
+    key-prefix: sms_ #指定的前缀，value前加上前缀
+    time-to-live: 10 #缓存最大存活时间
+    use-key-prefix: true #是否使用前缀，默认为true，false则存储时只有key没有value
 
  @Test
     void contextLoads(@Autowired StringRedisTemplate redisTemplate) {
@@ -2410,4 +2416,21 @@ private RestHighLevelClient restHighLevelClient;
 @EnableCaching //启动类上注解开启缓存
 
 @Cacheable(value="cacheSpace",key="#id") //服务层实现类上注解，前者为缓存位置，后者为缓存中查询索引
+@CachePut(value="cacheSpace",key="#id") //只放入不读取
 ```
+2. 变更缓存技术Ehcache
+>配置文件见 https://blog.csdn.net/qq_37391229/article/details/118522247 ，其中缓存的name对应于上面注解的value
+```java
+<dependency>
+   <groupId>net.sf.ehcache</groupId>
+   <artifactId>ehcache</artifactId>
+</dependency>
+
+spring:
+  cache:
+    type: ehcache
+    ehcache:
+      config: 配置文件名
+```
+3. 变更缓存技术redis
+>见6.2.1
