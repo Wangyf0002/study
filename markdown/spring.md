@@ -2434,3 +2434,210 @@ spring:
 ```
 3. 变更缓存技术redis
 >见6.2.1
+4. 变更缓存技术 memcached
+>安装：以管理员身份运行，定位到安装目录'memcached.exe -d install'
+```java
+<dependency>
+   <groupId>com.googlecode.xmemcached</groupId>
+   <artifactId>xmemcached</artifactId>
+   <version>2.4.7</version>
+</dependency>
+
+//这里先要将参数写入yml配置文件并设计相关的实体类，见4.2.3/1644
+@Configuration //自己写配置类
+publlic class config{
+   @Autowired
+   private 上面的实体类对象a；
+   @Bean
+   public MemcachedClient getMemcachedClient()throws Exception{
+      MemcachedClientBuilder mbuilder=new XMemcachedClientBuilder(a.实体类中代表服务器参数的get方法
+      );
+      mbuilder.setxxx(a.getxxx());//设定参数
+      MemcachedClient m=mbuilder.build();
+      return m;
+   }
+}
+
+@Autowired
+private MemcachedClient m; //业务层中
+m.get(key);//从缓存中获取
+m.set(key,过期时间，值); //数据放入缓存
+```
+5. 变更缓存技术 jetcache
+```java
+ <dependency>
+   <groupId>com.alicp.jetcache</groupId>
+   <artifactId>jetcache-starter-redis</artifactId>
+   <version>2.6.2</version>
+</dependency>
+
+jetcache:
+  statIntervalMinutes: 1 #隔几分钟输出统计数据报表
+  local:
+    default:
+      type: linkedhashmap
+      keyConvertor: fastjson #key转为string的方式
+  remote: 
+    default:
+      type: redis
+      host: localhost
+      port: 6379
+      valueEncode: java #序列化进入时的类型
+      valueDecode: java
+      poolConfig:
+        maxTotal: 50
+
+@EnableCreateCacheAnnotation //启动类上注解开启缓存
+@EnableMethodCache(basePackages="包名") //开启方法注解缓存
+
+//对应上面注解的操作
+//业务层中
+@CreateCache(area="default",name="jet",expire=3600,cacheType=CacheType.REMOTE) //3600为过期时间/s,area是上面remote下面名字，默认为"default" ,cacheType为启用本地（或，和）远程缓存
+//业务层方法中
+private Cache<String,String>jetCache; //定义缓存信息
+jetCache.put(key,value);//放到缓存中
+jetCache.get(value);//从缓存中取
+
+//对应下面注解的操作
+//业务层方法上
+//由于要对实体类进行序列化才可对存进redis，故先配置valueEncode，Decode属性，再让实体类继承Serializable接口
+@Override
+@Cache(area="default",name='user',key="#id",expire=3000) //读取
+public User getIds(Integer id){
+···
+}
+@CacheUpdate(name='user',key="#user.id",value="#user") //更新
+@CacheInvalidate(name='user',key="#id") //删除
+@CacheRefresh(refresh=1) //刷新
+```
+6. 缓存框架j2cache
+```java
+<dependency>
+   <groupId>net.oschina.j2cache</groupId>
+   <artifactId>j2cache-core</artifactId>
+   <version>2.8.4-release</version>
+</dependency>
+<dependency>
+   <groupId>net.oschina.j2cache</groupId>
+   <artifactId>j2cache-spring-boot-starter</artifactId>
+   <version>2.8.0-release</version>
+</dependency>
+//还有ehcache包
+
+j2cache:
+   config-location: j2cache.properties #配置文件名
+
+//j2cache.properties
+# 1级缓存
+j2cache.L1.provider_class=ehcache
+ehcache.configXml=ehcache配置文件名.xml
+
+#设置是否启用二级缓存
+j2cache.l2-cache-open=false
+# 2级缓存
+j2cache.L2.provider_class=SpringRedisProvider的全路径名
+j2cache.L2.config_section=a
+a.hosts=localhost:6379
+#1级缓存数据如何到达二级缓存
+j2cache.broadcast=SpringRedisPubSubPolicy的全路径名
+
+@Autowired
+priavte CacheChannel c;
+c.set(region="前面的name"，key,value);
+c.get(region,value).asString();
+```
+### 6.3.2 任务
+1. 整合quartz
+```java
+<dependency>
+   <groupId>org.springframework.boot</groupId>
+   <artifactId>spring-boot-starter-quartz</artifactId>
+</dependency>
+
+public class MyQuartz extends QuartzJobBean{ //任务类
+   @Override
+   protected void executeInternal(JobExecutionContext context)throws JobExecutionException{
+      ···
+   }
+}
+
+@Configuration
+public class quartzConfig{
+   @Bean
+   public JobDetail print(){ //工作明细，绑定具体的工作
+      return JobBuilder.newJob(MyQuartz.class).storeDurably().build();
+   }
+   @Bean
+   public Trigger print1(){ //触发器，绑定对应的工作明细
+      ScheduleBuilder scheBuilder =CronScheduleBuilder.cronSchedule("0 0 0 0 0 *");//秒 分 时 日 月 星期；？代表根据前面匹配，*代表任意，a/b代表从a开始每b执行
+      returnn TriggerBuilder.newTrigger().forJob(print()).withSchdule(scheBuilder).builder();
+   }
+}
+```
+2. 整合task
+```java
+@EnableScheduling //开启定时任务，放启动类上
+
+spring:
+   task:
+      scheduling:
+      pool: #任务调度线程池大小，默认1
+         size: 1
+      thread-name-prefix: ssm_ #调度线程池默认前缀，默认scheduling-
+      shutdown:
+         await-termination: false #线程池关闭时等待所有任务完成
+         await-termination-period: 10s #调度线程关闭前等待时间
+@Component
+public class myBean{
+   @Schedule(cron="") //定时执行的任务上写，cron表达式见上
+   public void print(){
+      ···
+   }
+}
+```
+### 6.3.3 邮件
+```java
+<dependency>
+   <groupId>org.springframework.boot</groupId>
+   <artifactId>spring-boot-starter-mail</artifactId>
+</dependency>
+
+spring:
+   mail:
+      host:smtp.126.com
+      username:wangyf0002@163.com
+      password:授权码
+
+public class sendImpl implements send(){ //业务层实现类
+   @AutoWired
+   private JavaMailSender j;
+
+   private String xxx;//下面需要的值
+   @Override
+   public void sendMail(){
+      //简单邮件
+      SimpleMailMessage m=new SimpleMailMessage();
+      m.setFrom(xxx);//发件地址
+      m.setTo(xxx);//收件地址
+      m.setSubject(xxx);//标题
+      m.setText(xxx);//正文
+
+   //多部件邮件
+   MimeMessage m=javaMailSender.createMimeMessage();
+   MimeMessageHelper h=new MimeMessageHelper(m,true);
+   h.setxxx(xxx);//见上
+   h.setText(xxx,true);//开启正文识别html格式
+
+   File file=new File("文件绝对路径") //添加附件
+   h.addAttachment(文件名,file);
+      j.send(m);
+   }
+
+@Autowired
+private send s;
+void test(){
+   s.sendMails();
+}
+
+```
+### 6.3.4 消息
