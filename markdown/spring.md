@@ -2641,3 +2641,52 @@ void test(){
 
 ```
 ### 6.3.4 消息
+1. 模拟短信发送
+>会将发送短信的动作依次放入消息队列，随后依次从消息队列中弹出
+```java
+@Service
+public class orderServiceImpl implements orderService{
+    @Autowired
+    private MessageService messageService;
+    @Override
+    public void print(String id) {   //处理消息
+        messageService.sendMessage(id);
+        System.out.println("已将id为"+id+"的短信放入消息队列");
+    }
+}
+@Service
+public class MessageServiceImpl implements MessageService{
+    private ArrayList<String> msgList=new ArrayList<String>();
+    @Override
+    public void sendMessage(String id) { //短信进入消息队列
+        msgList.add(id);
+    }
+    @Override
+    public String doMessage() { //已发送
+        String id=msgList.remove(0);
+        System.out.println("已完成id为"+id+"的短信发送");
+        return id;
+    }
+}
+@RestController
+@RequestMapping("/orders")
+public class OrdercController {
+    @Autowired
+    private orderService orderService;
+    @PostMapping("{id}")
+    public void order(@PathVariable String id){
+        orderService.print(id);
+    }
+}
+@RestController
+@RequestMapping("/msgs")
+public class MessageController {
+    @Autowired
+    private MessageService messageService;
+    @GetMapping
+    public String doMessage(){
+        return messageService.doMessage();
+    }
+}
+
+```
