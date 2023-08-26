@@ -2688,5 +2688,172 @@ public class MessageController {
         return messageService.doMessage();
     }
 }
-
 ```
+2. 整合activemq
+```java
+<dependency>
+   <groupId>org.springframework.boot</groupId>
+   <artifactId>spring-boot-starter-activemq</artifactId>
+</dependency>
+
+spring:
+  activemq:
+    broker-url: tcp://localhost:61616
+
+@Service
+public class MessageServiceImpl implements MessageService{
+   @Autowired
+    private JmsMessagingTemplate j;
+
+    @Override
+    public void sendMessage(String id) {
+        j.convertAndSend("order.queue.id",id); //发送,前面为队列名
+    }
+    @Override
+    public String doMessage() {
+        String id=j.receiveAndConvert("order.queue.id",String.class); //收到
+        System.out.println("已完成id为"+id+"的短信发送");
+        return id;
+    }
+}
+
+@Component
+public class Listener{ //监听器模块，自动接受消息，消息一进入队列就马上处理。替代上面手动接收消息doMessage()
+   @JmsListener(destination="order.queue.id")
+   @SendTo("order.queue,id2") //将函数返回值转发至另一消息队列
+   public String receive{
+      ···
+   }
+}
+```
+3. 整合Rabbitmq
+>安装软件和语言环境，见 https://blog.csdn.net/lzx1991610/article/details/102970854
+>启动：管理员权限在目录下：`rabbitmq-service.bat start`
+>开启服务可视化页面插件：管理员权限在目录下：`rabbitmq-plugins.bat enable rabbitmq_management`
+```java
+<dependency>
+   <groupId>org.springframework.boot</groupId>
+   <artifactId>spring-boot-starter-amqp</artifactId>
+</dependency>
+
+spring:
+  rabbitmq:
+    host: localhost
+    port: 5672
+
+//直连形式direct
+@Configuration
+public class RabbitMqConfig{
+   @Bean
+   public Queue directQueue(){ //消息队列
+      return new Queue("direct_queue");//后面三个参数：是否持久化，默认否；是否连接专用：默认否；是否自动删除：默认否
+   }
+   @Bean
+   public DirectExchange directChange(){ //交换机，可对应多个队列
+      return new DirectExchange("directChange");
+   }
+   @Bean
+   public Binding binding(){ //绑定上面两个
+      return BindingBuilder.bind(directQueue()).to(directChange()).with("directBinding");
+   }
+}
+@Service
+public class MessageServiceImpl implements MessageService{
+    @Autowired
+    private AmqpTemplate a;
+
+    @Override
+    public void sendMessage(String id) {
+        a.convertAndSend("directChange","directBinding",id); //交换机名，绑定名，消息
+    }
+}
+@Component
+public class Listener{ 
+   @RabbitListener(queue="direct_queue") 
+   public String receive(String id){
+      ···
+   }
+}
+//主题形式topic，把上面所有的ditect改成topic，但可以进行binding和convertAndSend的模糊匹配，如：
+@Bean
+   public Binding binding(){ //绑定上面两个
+   //*表示一个词，#表示任意数量
+      return BindingBuilder.bind(topicQueue()).to(topicChange()).with("topic.*");//把开头为topic.的消息都放入消息队列中
+   }
+```
+4. 整合Rocketmq
+>配置环境变量：ROCKETMQ_HOME,PATH,NAMESRV_ADDR：127.0.0.1：9876
+>生产者和消费者通过命名服务器再联系消息服务器，故先启动mqnamesrv，后启动mqbroker
+```java
+<dependency>
+   <groupId>org.apache.rockmq</groupId>
+   <artifactId>rocketmq-spring-boot-starter</artifactId>
+   <version>2.2.1</version>
+</dependency>
+
+rocketmq:
+   name-server:localhost: 9876
+   producer:
+      group: group_rocketmq #定义一个组名
+
+@Service
+public class MessageServiceImpl implements MessageService{
+    @Autowired
+    private RocketMQTemplate r;
+
+    @Override
+    public void sendMessage(String id) {
+      SendCallback callback=new Sendcallback(){
+         @Override
+         public void onSuccess(SendResult s){
+            //发送成功时的操作
+         }
+         @Override
+         public void onException(Throwable e){
+            //发送失败时的操作
+         }
+      }
+        r.asynSend("rocket_id",id,callback);//发送异步消息
+    }
+}
+@Component
+@RocketMQMessageListener(topic="rocket_id",consumerGroup="group_rocketmq")
+public class Listener implements RocketMQListener<String>{
+   @Override
+   public String receive(String id){
+      ···
+   } 
+}
+```
+5. 整合Kafka
+>目录下命令行启动：先`zookeeper-server-start.bat ..\..\config\zookeeper.properties` 再 `kafka-server-start.bat ..\..\config\server.properties`
+```java
+<dependency>
+   <groupId>org.springframework.kafka</groupId>
+   <artifactId>spring-kafka</artifactId>
+</dependency>
+
+spring:
+   kafka:
+    bootstrap-server: 9092
+    consumer:
+      group-id: order
+@Service
+public class MessageServiceImpl implements MessageService{
+    @Autowired
+    private KafkaTemplate<String,String> k;
+
+    @Override
+    public void sendMessage(String id) {
+        k.send("某个topic",id);
+    }
+}
+@Component
+public class Listener{
+   @KafkaListener(topics="某个topic")
+   public String receive(ConsumerRecord<String,String>record){
+      System.out.println(record.value());
+   } 
+}
+```
+## 6.4 监控 
